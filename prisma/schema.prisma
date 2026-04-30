@@ -1,0 +1,184 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  EMPLOYEE
+  ACCOUNTS
+  APPROVER
+  ADMIN
+}
+
+enum ClaimStatus {
+  DRAFT
+  SUBMITTED_TO_ACCOUNTS
+  RETURNED_BY_ACCOUNTS
+  REJECTED_BY_ACCOUNTS
+  PASSED_BY_ACCOUNTS
+  PENDING_LEVEL_1_APPROVAL
+  REJECTED_BY_LEVEL_1
+  PENDING_LEVEL_2_APPROVAL
+  REJECTED_BY_LEVEL_2
+  PENDING_LEVEL_3_APPROVAL
+  REJECTED_BY_LEVEL_3
+  FINAL_APPROVED
+  PAYMENT_DOWNLOADED
+  PAID
+}
+
+enum UploadBatchStatus {
+  PREVIEWED
+  IMPORTED
+  FAILED
+}
+
+model User {
+  id                 String   @id @default(cuid())
+  employeeId         String   @unique
+  name               String
+  email              String?  @unique
+  mobile             String?
+  passwordHash       String
+  role               Role     @default(EMPLOYEE)
+  department         String?
+  location           String?
+  plant              String?
+  costCenter         String?
+  reportingManagerId String?
+  level2ApproverId   String?
+  level3ApproverId   String?
+  isActive           Boolean  @default(true)
+  mustChangePassword Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  claims ClaimHeader[]
+}
+
+model ClaimHeader {
+  id                    String      @id @default(cuid())
+  claimId               String      @unique
+  employeeId            String
+  employeeName          String
+  department            String?
+  location              String?
+  plant                 String?
+  costCenter            String?
+  totalAmount           Decimal     @db.Decimal(12, 2)
+  currentStatus         ClaimStatus @default(DRAFT)
+  currentPendingWith    String?
+  approvalLevelRequired Int         @default(0)
+  submittedAt           DateTime?
+  finalApprovedAt       DateTime?
+  paymentDownloadedAt   DateTime?
+  paidAt                DateTime?
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+
+  employee User                   @relation(fields: [employeeId], references: [employeeId])
+  lines    ClaimLine[]
+  history  ClaimApprovalHistory[]
+}
+
+model ClaimLine {
+  id              String   @id @default(cuid())
+  claimHeaderId   String
+  claimTypeId     String
+  claimDate       DateTime
+  description     String
+  amount          Decimal  @db.Decimal(12, 2)
+  gstAmount       Decimal? @db.Decimal(12, 2)
+  vendorName      String?
+  billNumber      String?
+  employeeRemarks String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  claimHeader ClaimHeader       @relation(fields: [claimHeaderId], references: [id], onDelete: Cascade)
+  claimType   ClaimType         @relation(fields: [claimTypeId], references: [id])
+  attachments ClaimAttachment[]
+}
+
+model ClaimAttachment {
+  id          String   @id @default(cuid())
+  claimLineId String
+  fileName    String
+  fileUrl     String
+  fileType    String
+  fileSize    Int
+  uploadedBy  String
+  uploadedAt  DateTime @default(now())
+
+  claimLine ClaimLine @relation(fields: [claimLineId], references: [id], onDelete: Cascade)
+}
+
+model ClaimType {
+  id               String   @id @default(cuid())
+  name             String   @unique
+  attachmentRequired Boolean @default(false)
+  maxAmountPerLine Decimal? @db.Decimal(12, 2)
+  monthlyLimit     Decimal? @db.Decimal(12, 2)
+  costHead         String?
+  glCode           String?
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  lines ClaimLine[]
+}
+
+model ApprovalRule {
+  id             String   @id @default(cuid())
+  minAmount      Decimal  @db.Decimal(12, 2)
+  maxAmount      Decimal? @db.Decimal(12, 2)
+  requiresLevel1 Boolean  @default(true)
+  requiresLevel2 Boolean  @default(false)
+  requiresLevel3 Boolean  @default(false)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model ClaimApprovalHistory {
+  id                 String      @id @default(cuid())
+  claimHeaderId      String
+  actionByEmployeeId String
+  actionByName       String
+  roleAtAction       Role
+  action             String
+  comments           String?
+  previousStatus     ClaimStatus
+  newStatus          ClaimStatus
+  actionDate         DateTime    @default(now())
+
+  claimHeader ClaimHeader @relation(fields: [claimHeaderId], references: [id], onDelete: Cascade)
+}
+
+model EmployeeUploadBatch {
+  id           String            @id @default(cuid())
+  fileName     String
+  uploadedBy   String
+  totalRows    Int
+  validRows    Int
+  errorRows    Int
+  importedRows Int               @default(0)
+  status       UploadBatchStatus @default(PREVIEWED)
+  uploadedAt   DateTime          @default(now())
+
+  errors EmployeeUploadError[]
+}
+
+model EmployeeUploadError {
+  id           String @id @default(cuid())
+  batchId      String
+  rowNumber    Int
+  employeeId   String?
+  errorMessage String
+
+  batch EmployeeUploadBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+}

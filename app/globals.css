@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  color: #172033;
+  background: #eef2f7;
+}
+
+input, select, textarea {
+  @apply w-full rounded border border-line bg-white px-3 py-2 text-sm outline-none focus:border-accent;
+}
+
+label {
+  @apply text-xs font-semibold uppercase tracking-wide text-muted;
+}
+
+table {
+  @apply w-full text-sm;
+}
+
+th {
+  @apply bg-panel px-3 py-2 text-left text-xs font-semibold uppercase text-muted;
+}
+
+td {
+  @apply border-t border-line px-3 py-2 align-top;
+}
+
+.btn {
+  @apply inline-flex items-center justify-center rounded border border-accent bg-accent px-3 py-2 text-sm font-semibold text-white hover:bg-[#0f597a];
+}
+
+.btn-secondary {
+  @apply inline-flex items-center justify-center rounded border border-line bg-white px-3 py-2 text-sm font-semibold text-ink hover:bg-panel;
+}
+
+.card {
+  @apply rounded-md border border-line bg-white p-4 shadow-sm;
+}
