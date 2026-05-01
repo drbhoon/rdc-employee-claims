@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { Shell } from "@/components/Shell";
 import { StatusBadge } from "@/components/StatusBadge";
 import { employeeExpenseTypes } from "@/lib/expenseTypes";
+import { ActionButton } from "@/components/ActionButton";
 
 export default async function ClaimDetail({ params }: { params: { id: string } }) {
   const user = await requireUser();
@@ -16,8 +17,10 @@ export default async function ClaimDetail({ params }: { params: { id: string } }
   const canSee = user.role === "ADMIN" || user.role === "ACCOUNTS" || claim.employeeId === user.employeeId || claim.currentPendingWith === user.employeeId || claim.history.some((h) => h.actionByEmployeeId === user.employeeId);
   if (!canSee) notFound();
   const canEdit = claim.employeeId === user.employeeId && ["DRAFT", "RETURNED_BY_ACCOUNTS"].includes(claim.currentStatus);
-  const canAccounts = ["ACCOUNTS", "ADMIN"].includes(user.role);
-  const canApprove = (user.role === "APPROVER" || user.role === "ADMIN") && claim.currentPendingWith === user.employeeId;
+  const canAccountsAudit = ["ACCOUNTS", "ADMIN"].includes(user.role) && claim.currentStatus === "SUBMITTED_TO_ACCOUNTS";
+  const canMarkPaymentDownloaded = ["ACCOUNTS", "ADMIN"].includes(user.role) && claim.currentStatus === "FINAL_APPROVED";
+  const canMarkPaid = ["ACCOUNTS", "ADMIN"].includes(user.role) && claim.currentStatus === "PAYMENT_DOWNLOADED";
+  const canApprove = (user.role === "APPROVER" || user.role === "ADMIN") && claim.currentPendingWith === user.employeeId && ["PENDING_LEVEL_1_APPROVAL", "PENDING_LEVEL_2_APPROVAL", "PENDING_LEVEL_3_APPROVAL"].includes(claim.currentStatus);
   const claimTypes = await prisma.claimType.findMany({ where: { isActive: true, name: { in: employeeExpenseTypes } } });
   const orderedClaimTypes = employeeExpenseTypes
     .map((name) => claimTypes.find((type) => type.name === name))
@@ -64,8 +67,21 @@ export default async function ClaimDetail({ params }: { params: { id: string } }
               </div>
             ))}
           </div>
-          {canAccounts && <form action={accountsAction} className="card space-y-2"><h2 className="font-semibold">Accounts Action</h2><input type="hidden" name="id" value={claim.id} /><textarea name="comments" placeholder="Comments for return/reject" /><div className="flex flex-wrap gap-2"><button className="btn" name="action" value="pass">Pass to Approval</button><button className="btn-secondary" name="action" value="return">Return</button><button className="btn-secondary" name="action" value="reject">Reject</button><button className="btn-secondary" name="action" value="downloaded">Mark Downloaded</button><button className="btn-secondary" name="action" value="paid">Mark Paid</button></div></form>}
-          {canApprove && <form action={approverAction} className="card space-y-2"><h2 className="font-semibold">Approver Action</h2><input type="hidden" name="id" value={claim.id} /><textarea name="comments" placeholder="Required for rejection" /><div className="flex gap-2"><button className="btn" name="action" value="approve">Approve</button><button className="btn-secondary" name="action" value="reject">Reject</button></div></form>}
+          {(canAccountsAudit || canMarkPaymentDownloaded || canMarkPaid) && (
+            <form action={accountsAction} className="card space-y-2">
+              <h2 className="font-semibold">Accounts Action</h2>
+              <input type="hidden" name="id" value={claim.id} />
+              {canAccountsAudit && <textarea name="comments" placeholder="Comments for return/reject" />}
+              <div className="flex flex-wrap gap-2">
+                {canAccountsAudit && <ActionButton name="action" value="pass" variant="primary">Pass to Approval</ActionButton>}
+                {canAccountsAudit && <ActionButton name="action" value="return">Return</ActionButton>}
+                {canAccountsAudit && <ActionButton name="action" value="reject">Reject</ActionButton>}
+                {canMarkPaymentDownloaded && <ActionButton name="action" value="downloaded">Mark Downloaded</ActionButton>}
+                {canMarkPaid && <ActionButton name="action" value="paid">Mark Paid</ActionButton>}
+              </div>
+            </form>
+          )}
+          {canApprove && <form action={approverAction} className="card space-y-2"><h2 className="font-semibold">Approver Action</h2><input type="hidden" name="id" value={claim.id} /><textarea name="comments" placeholder="Required for rejection" /><div className="flex gap-2"><ActionButton name="action" value="approve" variant="primary">Approve</ActionButton><ActionButton name="action" value="reject">Reject</ActionButton></div></form>}
         </aside>
       </div>
       <section className="card mt-4"><h2 className="mb-3 font-semibold">Approval History</h2><table><thead><tr><th>Date</th><th>Action By</th><th>Action</th><th>From</th><th>To</th><th>Comments</th></tr></thead><tbody>{claim.history.map((h) => <tr key={h.id}><td>{h.actionDate.toLocaleString("en-IN")}</td><td>{h.actionByName}</td><td>{h.action}</td><td>{h.previousStatus}</td><td>{h.newStatus}</td><td>{h.comments || "-"}</td></tr>)}</tbody></table></section>

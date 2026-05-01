@@ -5,7 +5,13 @@ import { prisma } from "@/lib/prisma";
 
 export default async function ApproverPage() {
   const user = await requireUser(["APPROVER", "ADMIN"]);
-  const pending = await prisma.claimHeader.findMany({ where: { currentPendingWith: user.employeeId }, orderBy: { updatedAt: "desc" } });
+  const pending = await prisma.claimHeader.findMany({
+    where: {
+      currentPendingWith: user.employeeId,
+      currentStatus: { in: ["PENDING_LEVEL_1_APPROVAL", "PENDING_LEVEL_2_APPROVAL", "PENDING_LEVEL_3_APPROVAL"] }
+    },
+    orderBy: { updatedAt: "desc" }
+  });
   const acted = await prisma.claimApprovalHistory.findMany({ where: { actionByEmployeeId: user.employeeId }, select: { claimHeaderId: true, newStatus: true } });
   const approvedIds = acted.filter((a) => !String(a.newStatus).includes("REJECTED")).map((a) => a.claimHeaderId);
   const rejectedIds = acted.filter((a) => String(a.newStatus).includes("REJECTED")).map((a) => a.claimHeaderId);

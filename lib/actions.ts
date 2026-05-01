@@ -165,6 +165,9 @@ export async function accountsAction(formData: FormData) {
   const id = String(formData.get("id"));
   const action = String(formData.get("action"));
   const claim = await prisma.claimHeader.findUniqueOrThrow({ where: { id } });
+  if (["pass", "return", "reject"].includes(action) && claim.currentStatus !== "SUBMITTED_TO_ACCOUNTS") redirect("/accounts");
+  if (action === "downloaded" && claim.currentStatus !== "FINAL_APPROVED") redirect("/accounts");
+  if (action === "paid" && claim.currentStatus !== "PAYMENT_DOWNLOADED") redirect("/accounts");
   let newStatus: ClaimStatus = claim.currentStatus;
   let comments: string | undefined;
   let pendingWith: string | null = claim.currentPendingWith;
@@ -207,7 +210,9 @@ export async function accountsAction(formData: FormData) {
   if (["RETURNED_BY_ACCOUNTS", "REJECTED_BY_ACCOUNTS"].includes(newStatus)) await notifyClaim(updated, employee?.email, "Review Accounts comments");
   if (newStatus === "PENDING_LEVEL_1_APPROVAL") await notifyClaim(updated, nextApprover?.email, "Level 1 approval required");
   revalidatePath("/accounts");
-  redirect(`/claims/${id}`);
+  revalidatePath("/approver");
+  revalidatePath("/dashboard");
+  redirect("/accounts");
 }
 
 export async function approverAction(formData: FormData) {
@@ -216,6 +221,7 @@ export async function approverAction(formData: FormData) {
   const action = String(formData.get("action"));
   const claim = await prisma.claimHeader.findUniqueOrThrow({ where: { id } });
   if (claim.currentPendingWith !== user.employeeId && user.role !== "ADMIN") throw new Error("This claim is not pending with you.");
+  if (!["PENDING_LEVEL_1_APPROVAL", "PENDING_LEVEL_2_APPROVAL", "PENDING_LEVEL_3_APPROVAL"].includes(claim.currentStatus)) redirect("/approver");
   const employee = await prisma.user.findUniqueOrThrow({ where: { employeeId: claim.employeeId } });
   let comments: string | undefined;
   let newStatus: ClaimStatus;
@@ -245,7 +251,9 @@ export async function approverAction(formData: FormData) {
   if (newStatus === "FINAL_APPROVED") await notifyClaim(updated, [employeeMail?.email, process.env.ACCOUNTS_EMAIL].filter(Boolean) as string[], "Claim final approved");
   if (String(newStatus).startsWith("REJECTED")) await notifyClaim(updated, [employeeMail?.email, process.env.ACCOUNTS_EMAIL].filter(Boolean) as string[], "Claim rejected");
   revalidatePath("/approver");
-  redirect(`/claims/${id}`);
+  revalidatePath("/accounts");
+  revalidatePath("/dashboard");
+  redirect("/approver");
 }
 
 export async function saveClaimType(formData: FormData) {
