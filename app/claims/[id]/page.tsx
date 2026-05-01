@@ -4,6 +4,7 @@ import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Shell } from "@/components/Shell";
 import { StatusBadge } from "@/components/StatusBadge";
+import { employeeExpenseTypes } from "@/lib/expenseTypes";
 
 export default async function ClaimDetail({ params }: { params: { id: string } }) {
   const user = await requireUser();
@@ -17,7 +18,10 @@ export default async function ClaimDetail({ params }: { params: { id: string } }
   const canEdit = claim.employeeId === user.employeeId && ["DRAFT", "RETURNED_BY_ACCOUNTS"].includes(claim.currentStatus);
   const canAccounts = ["ACCOUNTS", "ADMIN"].includes(user.role);
   const canApprove = (user.role === "APPROVER" || user.role === "ADMIN") && claim.currentPendingWith === user.employeeId;
-  const claimTypes = await prisma.claimType.findMany({ where: { isActive: true }, orderBy: { name: "asc" } });
+  const claimTypes = await prisma.claimType.findMany({ where: { isActive: true, name: { in: employeeExpenseTypes } } });
+  const orderedClaimTypes = employeeExpenseTypes
+    .map((name) => claimTypes.find((type) => type.name === name))
+    .filter(Boolean) as typeof claimTypes;
 
   return (
     <Shell title={`Claim ${claim.claimId}`}>
@@ -34,22 +38,18 @@ export default async function ClaimDetail({ params }: { params: { id: string } }
               <input type="hidden" name="id" value={claim.id} />
               {claim.lines.map((line) => (
                 <div key={line.id} className="grid gap-2 border-t border-line pt-3 md:grid-cols-8">
-                  <div className="md:col-span-2"><label>Claim Type</label><select name="claimTypeId" defaultValue={line.claimTypeId}>{claimTypes.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select></div>
-                  <div><label>Date</label><input type="date" name="claimDate" defaultValue={line.claimDate.toISOString().slice(0, 10)} /></div>
-                  <div className="md:col-span-2"><label>Description</label><input name="description" defaultValue={line.description} /></div>
-                  <div><label>Amount</label><input type="number" step="0.01" name="amount" defaultValue={String(line.amount)} /></div>
-                  <div><label>GST</label><input type="number" step="0.01" name="gstAmount" defaultValue={line.gstAmount ? String(line.gstAmount) : ""} /></div>
-                  <div><label>Bill No.</label><input name="billNumber" defaultValue={line.billNumber || ""} /></div>
-                  <div className="md:col-span-2"><label>Vendor</label><input name="vendorName" defaultValue={line.vendorName || ""} /></div>
-                  <div className="md:col-span-6"><label>Remarks</label><input name="employeeRemarks" defaultValue={line.employeeRemarks || ""} /></div>
+                  <input type="hidden" name="claimDate" value={line.claimDate.toISOString().slice(0, 10)} />
+                  <div className="md:col-span-3"><label>Type of Expenses</label><select name="claimTypeId" defaultValue={line.claimTypeId}>{orderedClaimTypes.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select></div>
+                  <div className="md:col-span-3"><label>Description</label><input name="description" defaultValue={line.description} /></div>
+                  <div className="md:col-span-2"><label>Amount</label><input type="number" step="0.01" name="amount" defaultValue={String(line.amount)} /></div>
                 </div>
               ))}
               <div className="flex gap-2"><button className="btn-secondary" name="action" value="draft">Save Draft</button><button className="btn" name="action" value="submit">Submit Claim</button></div>
             </form>
           ) : (
             <div className="overflow-x-auto">
-              <table><thead><tr><th>Type</th><th>Date</th><th>Description</th><th>Amount</th><th>GST</th><th>Vendor</th><th>Bill</th></tr></thead>
-              <tbody>{claim.lines.map((l) => <tr key={l.id}><td>{l.claimType.name}</td><td>{l.claimDate.toLocaleDateString("en-IN")}</td><td>{l.description}</td><td>{String(l.amount)}</td><td>{l.gstAmount ? String(l.gstAmount) : "-"}</td><td>{l.vendorName || "-"}</td><td>{l.billNumber || "-"}</td></tr>)}</tbody></table>
+              <table><thead><tr><th>Date</th><th>Type of Expenses</th><th>Description</th><th>Amount</th></tr></thead>
+              <tbody>{claim.lines.map((l) => <tr key={l.id}><td>{l.claimDate.toLocaleDateString("en-IN")}</td><td>{l.claimType.name}</td><td>{l.description}</td><td>{String(l.amount)}</td></tr>)}</tbody></table>
             </div>
           )}
         </section>

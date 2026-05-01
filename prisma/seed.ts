@@ -1,5 +1,6 @@
 import { PrismaClient, Role } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { employeeExpenseTypes } from "../lib/expenseTypes";
 
 const prisma = new PrismaClient();
 
@@ -60,25 +61,14 @@ async function main() {
     level3ApproverId: "DIR001"
   });
 
-  const claimTypes = [
-    "Local Conveyance",
-    "Travel Expense",
-    "Food / Meal Expense",
-    "Hotel Stay",
-    "Mobile Reimbursement",
-    "Fuel Reimbursement",
-    "Toll / Parking",
-    "Medical Reimbursement",
-    "Staff Welfare",
-    "Miscellaneous"
-  ];
+  const claimTypes = employeeExpenseTypes;
   for (const name of claimTypes) {
     await prisma.claimType.upsert({
       where: { name },
-      update: {},
+      update: { attachmentRequired: false, isActive: true },
       create: {
         name,
-        attachmentRequired: !["Miscellaneous", "Staff Welfare"].includes(name),
+        attachmentRequired: false,
         costHead: name,
         glCode: `GL-${name.slice(0, 3).toUpperCase().replace(/[^A-Z]/g, "")}`
       }

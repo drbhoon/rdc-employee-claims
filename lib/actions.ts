@@ -1,10 +1,14 @@
 "use server";
 
+import { randomUUID } from "crypto";
+import { mkdir, writeFile } from "fs/promises";
+import path from "path";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ClaimStatus, Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
+import { allowedFileTypes } from "@/lib/constants";
 import { addHistory, findApprovalRule, nextClaimId, notifyClaim, requiredApprovalLevel, validateApproverMapping } from "@/lib/workflow";
 
 function money(value: FormDataEntryValue | null) {
@@ -25,21 +29,29 @@ export async function createOrUpdateClaim(formData: FormData) {
   const claimDates = formData.getAll("claimDate").map(String);
   const descriptions = formData.getAll("description").map(String);
   const amounts = formData.getAll("amount").map(Number);
-  const gstAmounts = formData.getAll("gstAmount").map((v) => (String(v) ? Number(v) : null));
+  const attachments = formData.getAll("attachment") as File[];
   const vendorNames = formData.getAll("vendorName").map(String);
   const billNumbers = formData.getAll("billNumber").map(String);
   const remarks = formData.getAll("employeeRemarks").map(String);
   const lines = claimTypeIds.map((claimTypeId, i) => ({
     claimTypeId,
-    claimDate: new Date(claimDates[i]),
+    claimDate: claimDates[i] ? new Date(claimDates[i]) : new Date(),
     description: descriptions[i],
     amount: amounts[i],
-    gstAmount: gstAmounts[i],
+    gstAmount: null,
     vendorName: vendorNames[i] || null,
     billNumber: billNumbers[i] || null,
-    employeeRemarks: remarks[i] || null
+    employeeRemarks: remarks[i] || null,
+    attachment: attachments[i]
   })).filter((line) => line.claimTypeId && line.amount > 0);
   if (!lines.length) throw new Error("Add at least one valid claim line.");
+  for (const line of lines) {
+    if (line.attachment?.size) {
+      const maxMb = Number(process.env.MAX_UPLOAD_SIZE_MB || 5);
+      if (!allowedFileTypes.includes(line.attachment.type)) throw new Error("Only PDF, JPG, JPEG and PNG files are allowed.");
+      if (line.attachment.size > maxMb * 1024 * 1024) throw new Error(`File exceeds ${maxMb}MB.`);
+    }
+  }
 
   const employee = await prisma.user.findUniqueOrThrow({ where: { employeeId: user.employeeId } });
   const existing = claimId ? await prisma.claimHeader.findUnique({ where: { id: claimId } }) : null;
@@ -77,7 +89,7 @@ export async function createOrUpdateClaim(formData: FormData) {
             currentStatus: status,
             currentPendingWith: action === "submit" ? "ACCOUNTS" : null,
             submittedAt: action === "submit" ? new Date() : existing.submittedAt,
-            lines: { deleteMany: {}, create: lines }
+            lines: { deleteMany: {} }
           }
         })
       : await tx.claimHeader.create({
@@ -92,10 +104,41 @@ export async function createOrUpdateClaim(formData: FormData) {
             totalAmount,
             currentStatus: status,
             currentPendingWith: action === "submit" ? "ACCOUNTS" : null,
-            submittedAt: action === "submit" ? new Date() : null,
-            lines: { create: lines }
+            submittedAt: action === "submit" ? new Date() : null
           }
         });
+    for (const line of lines) {
+      const createdLine = await tx.claimLine.create({
+        data: {
+          claimHeaderId: header.id,
+          claimTypeId: line.claimTypeId,
+          claimDate: line.claimDate,
+          description: line.description,
+          amount: line.amount,
+          gstAmount: null,
+          vendorName: line.vendorName,
+          billNumber: line.billNumber,
+          employeeRemarks: line.employeeRemarks
+        }
+      });
+      if (line.attachment?.size) {
+        const ext = path.extname(line.attachment.name).toLowerCase();
+        const stored = `${randomUUID()}${ext}`;
+        const dir = path.join(process.cwd(), "uploads");
+        await mkdir(dir, { recursive: true });
+        await writeFile(path.join(dir, stored), Buffer.from(await line.attachment.arrayBuffer()));
+        await tx.claimAttachment.create({
+          data: {
+            claimLineId: createdLine.id,
+            fileName: line.attachment.name,
+            fileUrl: `/api/attachments/${stored}`,
+            fileType: line.attachment.type,
+            fileSize: line.attachment.size,
+            uploadedBy: user.employeeId
+          }
+        });
+      }
+    }
     if (action === "submit") {
       await tx.claimApprovalHistory.create({
         data: {
