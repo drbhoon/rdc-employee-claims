@@ -69,3 +69,10 @@ export async function requireUser(roles?: Role[]) {
 export function canManageAll(role: Role) {
   return role === "ADMIN" || role === "ACCOUNTS";
 }
+
+export function homePathForRole(role: Role) {
+  if (role === "ADMIN") return "/admin";
+  if (role === "ACCOUNTS") return "/accounts";
+  if (role === "APPROVER") return "/approver";
+  return "/dashboard";
+}

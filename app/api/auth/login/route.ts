@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { setSessionCookie, signSession, verifyPassword } from "@/lib/auth";
+import { homePathForRole, setSessionCookie, signSession, verifyPassword } from "@/lib/auth";
+
+export async function GET(request: Request) {
+  return NextResponse.redirect(new URL("/login", request.url));
+}
 
 export async function POST(request: Request) {
   const form = await request.formData();
@@ -11,5 +15,5 @@ export async function POST(request: Request) {
     return NextResponse.redirect(new URL("/login?error=Invalid%20or%20inactive%20login", request.url));
   }
   setSessionCookie(signSession(user));
-  return NextResponse.redirect(new URL("/dashboard", request.url));
+  return NextResponse.redirect(new URL(homePathForRole(user.role), request.url));
 }

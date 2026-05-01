@@ -1,9 +1,9 @@
-import { getSession } from "@/lib/auth";
+import { getSession, homePathForRole } from "@/lib/auth";
 import { redirect } from "next/navigation";
 
 export default async function LoginPage({ searchParams }: { searchParams: { error?: string } }) {
   const session = await getSession();
-  if (session) redirect("/dashboard");
+  if (session) redirect(homePathForRole(session.role));
   return (
     <main className="flex min-h-screen items-center justify-center bg-panel px-4">
       <form action="/api/auth/login" method="post" className="card w-full max-w-sm space-y-4">
