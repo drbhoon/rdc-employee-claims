@@ -6,7 +6,7 @@ import { employeeExpenseTypes } from "@/lib/expenseTypes";
 import { EmployeeClaimLines } from "@/components/EmployeeClaimLines";
 
 export default async function NewClaimPage() {
-  const user = await requireUser(["EMPLOYEE", "ADMIN"]);
+  const user = await requireUser();
   const employee = await prisma.user.findUniqueOrThrow({ where: { employeeId: user.employeeId } });
   const claimTypes = await prisma.claimType.findMany({
     where: { isActive: true, name: { in: employeeExpenseTypes } }

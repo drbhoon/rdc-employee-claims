@@ -22,7 +22,7 @@ function requireComment(formData: FormData) {
 }
 
 export async function createOrUpdateClaim(formData: FormData) {
-  const user = await requireUser(["EMPLOYEE", "ADMIN"]);
+  const user = await requireUser();
   const claimId = String(formData.get("id") || "");
   const action = String(formData.get("action") || "draft");
   const claimTypeIds = formData.getAll("claimTypeId").map(String);
