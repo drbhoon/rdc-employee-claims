@@ -71,5 +71,14 @@ export async function notifyClaim(claim: ClaimHeader, to: string | string[] | un
 }
 
 export function statusLabel(status: string) {
+  const labels: Record<string, string> = {
+    PENDING_LEVEL_1_APPROVAL: "Pending RM Approval",
+    REJECTED_BY_LEVEL_1: "Rejected By RM",
+    PENDING_LEVEL_2_APPROVAL: "Pending BH/FH Approval",
+    REJECTED_BY_LEVEL_2: "Rejected By BH/FH",
+    PENDING_LEVEL_3_APPROVAL: "Pending COO/CEO Approval",
+    REJECTED_BY_LEVEL_3: "Rejected By COO/CEO"
+  };
+  if (labels[status]) return labels[status];
   return status.replaceAll("_", " ").toLowerCase().replace(/\b\w/g, (m) => m.toUpperCase());
 }

@@ -10,7 +10,7 @@ export async function Nav() {
         <Link href="/dashboard" className="font-bold text-ink">RDC Claims</Link>
         <nav className="flex flex-wrap items-center gap-3 text-sm">
           <Link href="/dashboard">Employee</Link>
-          {(user.role === "ACCOUNTS" || user.role === "ADMIN") && <Link href="/accounts">Accounts</Link>}
+          {(user.role === "ACCOUNTS" || user.role === "ADMIN") && <Link href="/accounts">Accounts Verifier</Link>}
           {(user.role === "APPROVER" || user.role === "ADMIN") && <Link href="/approver">Approver</Link>}
           {user.role === "ADMIN" && <Link href="/admin">Admin</Link>}
           {(user.role === "ACCOUNTS" || user.role === "ADMIN") && <Link href="/reports">Reports</Link>}

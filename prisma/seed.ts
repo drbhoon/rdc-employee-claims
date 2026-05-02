@@ -20,6 +20,7 @@ async function upsertUser(data: {
     update: {
       name: data.name,
       email: data.email,
+      passwordHash,
       role: data.role,
       reportingManagerId: data.reportingManagerId,
       level2ApproverId: data.level2ApproverId,
@@ -45,20 +46,56 @@ async function upsertUser(data: {
 }
 
 async function main() {
-  await upsertUser({ employeeId: "ADMIN001", name: "System Admin", password: "Admin@123", role: "ADMIN", email: "admin@example.com" });
-  await upsertUser({ employeeId: "ACC001", name: "Accounts User", password: "Accounts@123", role: "ACCOUNTS", email: "accounts@example.com" });
-  await upsertUser({ employeeId: "MGR001", name: "Reporting Manager", password: "Manager@123", role: "APPROVER", email: "manager@example.com" });
-  await upsertUser({ employeeId: "HOD001", name: "HOD Approver", password: "Hod@123", role: "APPROVER", email: "hod@example.com" });
-  await upsertUser({ employeeId: "DIR001", name: "Director Approver", password: "Director@123", role: "APPROVER", email: "director@example.com" });
+  await upsertUser({ employeeId: "ADMIN001", name: "System Admin", password: "Admin@123", role: "ADMIN", email: "admin@rdc.test" });
+  await upsertUser({
+    employeeId: "ACC001",
+    name: "Accounts Verifier",
+    password: "Accounts@123",
+    role: "ACCOUNTS",
+    email: "accounts.verifier@rdc.test",
+    reportingManagerId: "RM001",
+    level2ApproverId: "BHFH001",
+    level3ApproverId: "COOCEO001"
+  });
+  await upsertUser({
+    employeeId: "RM001",
+    name: "Reporting Manager",
+    password: "Manager@123",
+    role: "APPROVER",
+    email: "rm@rdc.test",
+    reportingManagerId: "RM001",
+    level2ApproverId: "BHFH001",
+    level3ApproverId: "COOCEO001"
+  });
+  await upsertUser({
+    employeeId: "BHFH001",
+    name: "Business Functional Head",
+    password: "Head@123",
+    role: "APPROVER",
+    email: "bhfh@rdc.test",
+    reportingManagerId: "RM001",
+    level2ApproverId: "BHFH001",
+    level3ApproverId: "COOCEO001"
+  });
+  await upsertUser({
+    employeeId: "COOCEO001",
+    name: "COO CEO Approver",
+    password: "Cooceo@123",
+    role: "APPROVER",
+    email: "cooceo@rdc.test",
+    reportingManagerId: "RM001",
+    level2ApproverId: "BHFH001",
+    level3ApproverId: "COOCEO001"
+  });
   await upsertUser({
     employeeId: "EMP001",
     name: "Demo Employee",
     password: "Employee@123",
     role: "EMPLOYEE",
-    email: "employee@example.com",
-    reportingManagerId: "MGR001",
-    level2ApproverId: "HOD001",
-    level3ApproverId: "DIR001"
+    email: "employee@rdc.test",
+    reportingManagerId: "RM001",
+    level2ApproverId: "BHFH001",
+    level3ApproverId: "COOCEO001"
   });
 
   const claimTypes = employeeExpenseTypes;
@@ -78,9 +115,8 @@ async function main() {
   await prisma.approvalRule.deleteMany({});
   await prisma.approvalRule.createMany({
     data: [
-      { minAmount: 0, maxAmount: 2000, requiresLevel1: true, requiresLevel2: false, requiresLevel3: false },
-      { minAmount: 2001, maxAmount: 10000, requiresLevel1: true, requiresLevel2: true, requiresLevel3: false },
-      { minAmount: 10001, maxAmount: null, requiresLevel1: true, requiresLevel2: true, requiresLevel3: true }
+      { minAmount: 0, maxAmount: 25000, requiresLevel1: true, requiresLevel2: true, requiresLevel3: false },
+      { minAmount: 25000.01, maxAmount: null, requiresLevel1: true, requiresLevel2: true, requiresLevel3: true }
     ]
   });
 }

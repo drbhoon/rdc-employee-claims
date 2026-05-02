@@ -55,6 +55,7 @@ export async function createOrUpdateClaim(formData: FormData) {
 
   const employee = await prisma.user.findUniqueOrThrow({ where: { employeeId: user.employeeId } });
   const existing = claimId ? await prisma.claimHeader.findUnique({ where: { id: claimId } }) : null;
+  if (existing && existing.employeeId !== user.employeeId) throw new Error("You can edit only your own claims.");
   if (existing && !["DRAFT", "RETURNED_BY_ACCOUNTS"].includes(existing.currentStatus)) throw new Error("This claim can no longer be edited.");
   const claimTypes = await prisma.claimType.findMany({ where: { id: { in: lines.map((l) => l.claimTypeId) } } });
   for (const line of lines) {

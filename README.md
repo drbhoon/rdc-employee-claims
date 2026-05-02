@@ -4,10 +4,10 @@ Custom employee claims workflow for an Indian company, built with Next.js, TypeS
 
 ## Features
 
-- Company employee ID and password login
+- Company email ID and password login
 - Employee claim drafts, submission, line items and secure document uploads
 - Accounts audit before approval routing
-- Financial-limit approval up to Level 1, Level 2 and Level 3
+- Simple approval matrix: Accounts verifier, RM, Business/Functional Head up to Rs 25,000, and COO/CEO beyond Rs 25,000
 - Admin employee master upload template and import
 - Claim type and approval rule masters
 - Accounts dashboards and approved-claims CSV export
@@ -71,14 +71,14 @@ Use `prisma:dev` locally to create and apply migrations. Use `prisma:migrate` on
 
 ## Seed Logins
 
-| Role | Employee ID | Password |
-| --- | --- | --- |
-| Admin | ADMIN001 | Admin@123 |
-| Accounts | ACC001 | Accounts@123 |
-| Employee | EMP001 | Employee@123 |
-| Manager L1 | MGR001 | Manager@123 |
-| HOD L2 | HOD001 | Hod@123 |
-| Director L3 | DIR001 | Director@123 |
+| Role | Email ID | Employee ID | Password |
+| --- | --- | --- | --- |
+| Admin | admin@rdc.test | ADMIN001 | Admin@123 |
+| Accounts Verifier | accounts.verifier@rdc.test | ACC001 | Accounts@123 |
+| User | employee@rdc.test | EMP001 | Employee@123 |
+| RM | rm@rdc.test | RM001 | Manager@123 |
+| Business/Functional Head | bhfh@rdc.test | BHFH001 | Head@123 |
+| COO/CEO | cooceo@rdc.test | COOCEO001 | Cooceo@123 |
 
 ## Railway Deployment
 
@@ -88,19 +88,8 @@ Use `prisma:dev` locally to create and apply migrations. Use `prisma:migrate` on
 4. Add a Railway PostgreSQL service.
 5. Set environment variables in the web service, especially `DATABASE_URL`, `NEXTAUTH_SECRET`, `APP_URL`, `ACCOUNTS_EMAIL`, and SMTP settings if email is required.
 6. Deploy the app.
-7. Run migrations:
-
-```bash
-npm run prisma:migrate
-```
-
-8. Seed the database:
-
-```bash
-npm run prisma:seed
-```
-
-9. Test login with `ADMIN001 / Admin@123`.
+7. Railway uses `railway:start`, which runs migrations and seeds the test users before starting Next.js.
+8. Test login with `admin@rdc.test / Admin@123`.
 
 ## GitHub Push
 

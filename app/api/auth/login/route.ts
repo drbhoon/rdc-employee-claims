@@ -8,9 +8,9 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const form = await request.formData();
-  const employeeId = String(form.get("employeeId") || "").trim();
+  const loginId = String(form.get("loginId") || "").trim().toLowerCase();
   const password = String(form.get("password") || "");
-  const user = await prisma.user.findUnique({ where: { employeeId } });
+  const user = await prisma.user.findUnique({ where: { email: loginId } });
   if (!user || !user.isActive || !(await verifyPassword(password, user.passwordHash))) {
     return NextResponse.redirect(new URL("/login?error=Invalid%20or%20inactive%20login", request.url));
   }

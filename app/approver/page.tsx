@@ -18,7 +18,7 @@ export default async function ApproverPage() {
   const approved = await prisma.claimHeader.findMany({ where: { id: { in: approvedIds } }, orderBy: { updatedAt: "desc" } });
   const rejected = await prisma.claimHeader.findMany({ where: { id: { in: rejectedIds } }, orderBy: { updatedAt: "desc" } });
   return (
-    <Shell title="Approver Dashboard">
+    <Shell title="Approver Dashboard (RM / BH-FH / COO-CEO)">
       <div className="space-y-6">
         <section><h2 className="mb-2 font-semibold">Pending My Approval</h2><ClaimTable claims={pending} /></section>
         <section><h2 className="mb-2 font-semibold">Approved by Me</h2><ClaimTable claims={approved} /></section>

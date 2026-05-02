@@ -25,13 +25,13 @@ export default async function AdminPage() {
           <form action={saveApprovalRule} className="mb-4 grid gap-2 md:grid-cols-4">
             <div><label>Min Amount</label><input name="minAmount" type="number" step="0.01" required /></div>
             <div><label>Max Amount</label><input name="maxAmount" type="number" step="0.01" /></div>
-            <label className="flex items-center gap-2 pt-6"><input className="w-auto" type="checkbox" name="requiresLevel1" defaultChecked />L1</label>
-            <label className="flex items-center gap-2 pt-6"><input className="w-auto" type="checkbox" name="requiresLevel2" />L2</label>
-            <label className="flex items-center gap-2"><input className="w-auto" type="checkbox" name="requiresLevel3" />L3</label>
+            <label className="flex items-center gap-2 pt-6"><input className="w-auto" type="checkbox" name="requiresLevel1" defaultChecked />RM</label>
+            <label className="flex items-center gap-2 pt-6"><input className="w-auto" type="checkbox" name="requiresLevel2" />BH/FH</label>
+            <label className="flex items-center gap-2"><input className="w-auto" type="checkbox" name="requiresLevel3" />COO/CEO</label>
             <label className="flex items-center gap-2"><input className="w-auto" type="checkbox" name="isActive" defaultChecked />Active</label>
             <button className="btn md:col-span-2">Add Rule</button>
           </form>
-          <table><thead><tr><th>Min</th><th>Max</th><th>L1</th><th>L2</th><th>L3</th><th>Active</th></tr></thead><tbody>{rules.map((r) => <tr key={r.id}><td>{String(r.minAmount)}</td><td>{r.maxAmount ? String(r.maxAmount) : "No limit"}</td><td>{String(r.requiresLevel1)}</td><td>{String(r.requiresLevel2)}</td><td>{String(r.requiresLevel3)}</td><td>{String(r.isActive)}</td></tr>)}</tbody></table>
+          <table><thead><tr><th>Min</th><th>Max</th><th>RM</th><th>BH/FH</th><th>COO/CEO</th><th>Active</th></tr></thead><tbody>{rules.map((r) => <tr key={r.id}><td>{String(r.minAmount)}</td><td>{r.maxAmount ? String(r.maxAmount) : "No limit"}</td><td>{String(r.requiresLevel1)}</td><td>{String(r.requiresLevel2)}</td><td>{String(r.requiresLevel3)}</td><td>{String(r.isActive)}</td></tr>)}</tbody></table>
         </section>
       </div>
       <section className="card mt-4">
@@ -50,7 +50,7 @@ export default async function AdminPage() {
       </section>
       <section className="card mt-4">
         <h2 className="mb-3 font-semibold">Employee List and Roles</h2>
-        <div className="overflow-x-auto"><table><thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Role</th><th>Department</th><th>Cost Center</th><th>L1</th><th>L2</th><th>L3</th><th>Active</th></tr></thead><tbody>{users.map((u) => <tr key={u.id}><td>{u.employeeId}</td><td>{u.name}</td><td>{u.email || "-"}</td><td>{u.role}</td><td>{u.department || "-"}</td><td>{u.costCenter || "-"}</td><td>{u.reportingManagerId || "-"}</td><td>{u.level2ApproverId || "-"}</td><td>{u.level3ApproverId || "-"}</td><td>{String(u.isActive)}</td></tr>)}</tbody></table></div>
+        <div className="overflow-x-auto"><table><thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Role</th><th>Department</th><th>Cost Center</th><th>RM</th><th>BH/FH</th><th>COO/CEO</th><th>Active</th></tr></thead><tbody>{users.map((u) => <tr key={u.id}><td>{u.employeeId}</td><td>{u.name}</td><td>{u.email || "-"}</td><td>{u.role}</td><td>{u.department || "-"}</td><td>{u.costCenter || "-"}</td><td>{u.reportingManagerId || "-"}</td><td>{u.level2ApproverId || "-"}</td><td>{u.level3ApproverId || "-"}</td><td>{String(u.isActive)}</td></tr>)}</tbody></table></div>
       </section>
     </Shell>
   );
