@@ -1,6 +1,6 @@
 import { PrismaClient, Role } from "@prisma/client";
 import bcrypt from "bcryptjs";
-import { employeeExpenseTypes } from "../lib/expenseTypes";
+import { employeeExpenseTypes, expenseGlCodes } from "../lib/expenseTypes";
 
 const prisma = new PrismaClient();
 
@@ -102,12 +102,12 @@ async function main() {
   for (const name of claimTypes) {
     await prisma.claimType.upsert({
       where: { name },
-      update: { attachmentRequired: false, isActive: true },
+      update: { attachmentRequired: false, costHead: name, glCode: expenseGlCodes[name], isActive: true },
       create: {
         name,
         attachmentRequired: false,
         costHead: name,
-        glCode: `GL-${name.slice(0, 3).toUpperCase().replace(/[^A-Z]/g, "")}`
+        glCode: expenseGlCodes[name]
       }
     });
   }

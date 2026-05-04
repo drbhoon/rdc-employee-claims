@@ -6,8 +6,9 @@ import { Shell } from "@/components/Shell";
 import { StatusBadge } from "@/components/StatusBadge";
 import { employeeExpenseTypes } from "@/lib/expenseTypes";
 import { ActionButton } from "@/components/ActionButton";
+import { ErrorNotice } from "@/components/ErrorNotice";
 
-export default async function ClaimDetail({ params }: { params: { id: string } }) {
+export default async function ClaimDetail({ params, searchParams }: { params: { id: string }; searchParams: { error?: string } }) {
   const user = await requireUser();
   const claim = await prisma.claimHeader.findUnique({
     where: { id: params.id },
@@ -25,9 +26,16 @@ export default async function ClaimDetail({ params }: { params: { id: string } }
   const orderedClaimTypes = employeeExpenseTypes
     .map((name) => claimTypes.find((type) => type.name === name))
     .filter(Boolean) as typeof claimTypes;
+  const rejectionReason = claim.history.find((h) => String(h.newStatus).includes("REJECTED"))?.comments;
 
   return (
     <Shell title={`Claim ${claim.claimId}`}>
+      <ErrorNotice message={searchParams.error} />
+      {claim.currentStatus.includes("REJECTED") && (
+        <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          <span className="font-semibold">Rejection reason:</span> {rejectionReason || "No reason recorded."}
+        </div>
+      )}
       <div className="grid gap-4 lg:grid-cols-3">
         <section className="card lg:col-span-2">
           <div className="mb-4 grid gap-3 md:grid-cols-4">
@@ -47,7 +55,7 @@ export default async function ClaimDetail({ params }: { params: { id: string } }
                   <div className="md:col-span-2"><label>Amount</label><input type="number" step="0.01" name="amount" defaultValue={String(line.amount)} /></div>
                 </div>
               ))}
-              <div className="flex gap-2"><button className="btn-secondary" name="action" value="draft">Save Draft</button><button className="btn" name="action" value="submit">Submit Claim</button></div>
+              <div className="flex gap-2"><button className="btn-secondary" name="action" value="draft">Save Draft</button><ActionButton name="action" value="submit" variant="primary" confirmMessage="Are you sure you want to submit this claim?">Submit Claim</ActionButton></div>
             </form>
           ) : (
             <div className="overflow-x-auto">

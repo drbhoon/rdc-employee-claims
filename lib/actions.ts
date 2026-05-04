@@ -15,15 +15,20 @@ function money(value: FormDataEntryValue | null) {
   return Number(value || 0);
 }
 
-function requireComment(formData: FormData) {
+function actionError(path: string, message: string): never {
+  redirect(`${path}?error=${encodeURIComponent(message)}`);
+}
+
+function requireComment(formData: FormData, path: string, label: string) {
   const comments = String(formData.get("comments") || "").trim();
-  if (!comments) throw new Error("Comments are required.");
+  if (!comments) actionError(path, `${label}: reason/comments are required.`);
   return comments;
 }
 
 export async function createOrUpdateClaim(formData: FormData) {
   const user = await requireUser();
   const claimId = String(formData.get("id") || "");
+  const errorPath = claimId ? `/claims/${claimId}` : "/claims/new";
   const action = String(formData.get("action") || "draft");
   const claimTypeIds = formData.getAll("claimTypeId").map(String);
   const claimDates = formData.getAll("claimDate").map(String);
@@ -44,28 +49,29 @@ export async function createOrUpdateClaim(formData: FormData) {
     employeeRemarks: remarks[i] || null,
     attachment: attachments[i]
   })).filter((line) => line.claimTypeId && line.amount > 0);
-  if (!lines.length) throw new Error("Add at least one valid claim line.");
+  if (!lines.length) actionError(errorPath, "Claim line entry: add at least one expense type with an amount greater than zero.");
   for (const line of lines) {
     if (line.attachment?.size) {
       const maxMb = Number(process.env.MAX_UPLOAD_SIZE_MB || 5);
-      if (!allowedFileTypes.includes(line.attachment.type)) throw new Error("Only PDF, JPG, JPEG and PNG files are allowed.");
-      if (line.attachment.size > maxMb * 1024 * 1024) throw new Error(`File exceeds ${maxMb}MB.`);
+      if (!allowedFileTypes.includes(line.attachment.type)) actionError(errorPath, "Supporting document upload: only PDF, JPG, JPEG and PNG files are allowed.");
+      if (line.attachment.size > maxMb * 1024 * 1024) actionError(errorPath, `Supporting document upload: file exceeds ${maxMb}MB.`);
     }
   }
 
   const employee = await prisma.user.findUniqueOrThrow({ where: { employeeId: user.employeeId } });
   const existing = claimId ? await prisma.claimHeader.findUnique({ where: { id: claimId } }) : null;
-  if (existing && existing.employeeId !== user.employeeId) throw new Error("You can edit only your own claims.");
-  if (existing && !["DRAFT", "RETURNED_BY_ACCOUNTS"].includes(existing.currentStatus)) throw new Error("This claim can no longer be edited.");
+  if (claimId && !existing) actionError("/dashboard", "Claim edit: claim was not found.");
+  if (existing && existing.employeeId !== user.employeeId) actionError(errorPath, "Claim edit: you can edit only your own claims.");
+  if (existing && !["DRAFT", "RETURNED_BY_ACCOUNTS"].includes(existing.currentStatus)) actionError(errorPath, "Claim edit: this claim can no longer be edited.");
   const claimTypes = await prisma.claimType.findMany({ where: { id: { in: lines.map((l) => l.claimTypeId) } } });
   for (const line of lines) {
     const type = claimTypes.find((t) => t.id === line.claimTypeId);
-    if (!type?.isActive) throw new Error("Claim type must be active.");
-    if (line.amount <= 0) throw new Error("Amount must be greater than zero.");
-    if (type.maxAmountPerLine && line.amount > Number(type.maxAmountPerLine)) throw new Error(`${type.name} exceeds maximum amount per line.`);
+    if (!type?.isActive) actionError(errorPath, "Claim line entry: selected expense type is inactive.");
+    if (line.amount <= 0) actionError(errorPath, "Claim line entry: amount must be greater than zero.");
+    if (type.maxAmountPerLine && line.amount > Number(type.maxAmountPerLine)) actionError(errorPath, `Claim line entry: ${type.name} exceeds maximum amount per line.`);
   }
   const totalAmount = lines.reduce((sum, line) => sum + line.amount, 0);
-  if (action === "submit" && !(await findApprovalRule(totalAmount))) throw new Error("Approval rule must exist for submitted amount.");
+  if (action === "submit" && !(await findApprovalRule(totalAmount))) actionError(errorPath, "Approval routing: no active approval rule exists for this claim amount.");
   if (action === "submit") {
     const duplicateChecks = lines.filter((l) => l.billNumber).map((l) => ({ billNumber: l.billNumber, claimTypeId: l.claimTypeId, amount: l.amount }));
     if (duplicateChecks.length) {
@@ -75,7 +81,7 @@ export async function createOrUpdateClaim(formData: FormData) {
           OR: duplicateChecks
         }
       });
-      if (duplicate) throw new Error("Duplicate warning: same bill number, claim type and amount already exists for this employee.");
+      if (duplicate) actionError(errorPath, "Duplicate warning: same bill number, expense type and amount already exists for this employee.");
     }
   }
   const status: ClaimStatus = action === "submit" ? "SUBMITTED_TO_ACCOUNTS" : "DRAFT";
@@ -165,25 +171,26 @@ export async function accountsAction(formData: FormData) {
   const user = await requireUser(["ACCOUNTS", "ADMIN"]);
   const id = String(formData.get("id"));
   const action = String(formData.get("action"));
+  const errorPath = `/claims/${id}`;
   const claim = await prisma.claimHeader.findUniqueOrThrow({ where: { id } });
-  if (["pass", "return", "reject"].includes(action) && claim.currentStatus !== "SUBMITTED_TO_ACCOUNTS") redirect("/accounts");
-  if (action === "downloaded" && claim.currentStatus !== "FINAL_APPROVED") redirect("/accounts");
-  if (action === "paid" && claim.currentStatus !== "PAYMENT_DOWNLOADED") redirect("/accounts");
+  if (["pass", "return", "reject"].includes(action) && claim.currentStatus !== "SUBMITTED_TO_ACCOUNTS") actionError(errorPath, "Accounts action: claim is not pending Accounts audit.");
+  if (action === "downloaded" && claim.currentStatus !== "FINAL_APPROVED") actionError(errorPath, "Payment action: only final-approved claims can be marked downloaded.");
+  if (action === "paid" && claim.currentStatus !== "PAYMENT_DOWNLOADED") actionError(errorPath, "Payment action: only downloaded claims can be marked paid.");
   let newStatus: ClaimStatus = claim.currentStatus;
   let comments: string | undefined;
   let pendingWith: string | null = claim.currentPendingWith;
 
   if (action === "return") {
-    comments = requireComment(formData);
+    comments = requireComment(formData, errorPath, "Accounts return");
     newStatus = "RETURNED_BY_ACCOUNTS";
     pendingWith = claim.employeeId;
   } else if (action === "reject") {
-    comments = requireComment(formData);
+    comments = requireComment(formData, errorPath, "Accounts rejection");
     newStatus = "REJECTED_BY_ACCOUNTS";
     pendingWith = null;
   } else if (action === "pass") {
     const validation = await validateApproverMapping(claim.employeeId, Number(claim.totalAmount));
-    if (!validation.ok || !validation.rule || !validation.employee) throw new Error(validation.message);
+    if (!validation.ok || !validation.rule || !validation.employee) actionError(errorPath, `Approval routing: ${validation.message}`);
     newStatus = "PENDING_LEVEL_1_APPROVAL";
     pendingWith = validation.employee.reportingManagerId!;
     const level = requiredApprovalLevel(validation.rule);
@@ -220,15 +227,16 @@ export async function approverAction(formData: FormData) {
   const user = await requireUser(["APPROVER", "ADMIN"]);
   const id = String(formData.get("id"));
   const action = String(formData.get("action"));
+  const errorPath = `/claims/${id}`;
   const claim = await prisma.claimHeader.findUniqueOrThrow({ where: { id } });
-  if (claim.currentPendingWith !== user.employeeId && user.role !== "ADMIN") throw new Error("This claim is not pending with you.");
-  if (!["PENDING_LEVEL_1_APPROVAL", "PENDING_LEVEL_2_APPROVAL", "PENDING_LEVEL_3_APPROVAL"].includes(claim.currentStatus)) redirect("/approver");
+  if (claim.currentPendingWith !== user.employeeId && user.role !== "ADMIN") actionError(errorPath, "Approver action: this claim is not pending with your login ID.");
+  if (!["PENDING_LEVEL_1_APPROVAL", "PENDING_LEVEL_2_APPROVAL", "PENDING_LEVEL_3_APPROVAL"].includes(claim.currentStatus)) actionError(errorPath, "Approver action: this claim is not pending approval.");
   const employee = await prisma.user.findUniqueOrThrow({ where: { employeeId: claim.employeeId } });
   let comments: string | undefined;
   let newStatus: ClaimStatus;
   let pendingWith: string | null = null;
   if (action === "reject") {
-    comments = requireComment(formData);
+    comments = requireComment(formData, errorPath, "Approver rejection");
     newStatus =
       claim.currentStatus === "PENDING_LEVEL_1_APPROVAL" ? "REJECTED_BY_LEVEL_1" :
       claim.currentStatus === "PENDING_LEVEL_2_APPROVAL" ? "REJECTED_BY_LEVEL_2" : "REJECTED_BY_LEVEL_3";
