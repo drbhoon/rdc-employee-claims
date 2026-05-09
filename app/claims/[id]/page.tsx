@@ -27,7 +27,10 @@ export default async function ClaimDetail({ params, searchParams }: { params: { 
   const canAccountsAudit = ["ACCOUNTS", "ADMIN"].includes(user.role) && claim.currentStatus === "SUBMITTED_TO_ACCOUNTS";
   const canMarkPaymentDownloaded = ["ACCOUNTS", "ADMIN"].includes(user.role) && claim.currentStatus === "FINAL_APPROVED";
   const canMarkPaid = ["ACCOUNTS", "ADMIN"].includes(user.role) && claim.currentStatus === "PAYMENT_DOWNLOADED";
-  const canApprove = (user.role === "APPROVER" || user.role === "ADMIN") && claim.currentPendingWith === user.employeeId && ["PENDING_LEVEL_1_APPROVAL", "PENDING_LEVEL_2_APPROVAL", "PENDING_LEVEL_3_APPROVAL"].includes(claim.currentStatus);
+  const canApprove =
+    (user.role === "APPROVER" || user.role === "ADMIN") &&
+    (claim.currentPendingWith === user.employeeId || claim.currentPendingWith === user.email || user.role === "ADMIN") &&
+    ["PENDING_LEVEL_1_APPROVAL", "PENDING_LEVEL_2_APPROVAL"].includes(claim.currentStatus);
   const claimTypes = await prisma.claimType.findMany({ where: { isActive: true, name: { in: employeeExpenseTypes } } });
   const orderedClaimTypes = employeeExpenseTypes
     .map((name) => claimTypes.find((type) => type.name === name))
