@@ -11,8 +11,11 @@ export async function POST(request: Request) {
   const loginId = String(form.get("loginId") || "").trim().toLowerCase();
   const password = String(form.get("password") || "");
   const user = await prisma.user.findUnique({ where: { email: loginId } });
-  if (!user || !user.isActive || !(await verifyPassword(password, user.passwordHash))) {
-    return NextResponse.redirect(appRedirectUrl("/login?error=Invalid%20or%20inactive%20login", request));
+  if (!user || !user.isActive) {
+    return NextResponse.redirect(appRedirectUrl("/login?error=Email%20ID%20not%20found%20or%20inactive.%20Please%20check%20uploaded%20employee%20data.", request));
+  }
+  if (!(await verifyPassword(password, user.passwordHash))) {
+    return NextResponse.redirect(appRedirectUrl("/login?error=Incorrect%20password.%20Use%20Forgot%20password%20to%20receive%20a%20reset%20link.", request));
   }
   setSessionCookie(signSession(user));
   return NextResponse.redirect(appRedirectUrl(homePathForRole(user.role), request));
