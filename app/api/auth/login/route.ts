@@ -18,5 +18,6 @@ export async function POST(request: Request) {
     return NextResponse.redirect(appRedirectUrl("/login?error=Incorrect%20password.%20Use%20Forgot%20password%20to%20receive%20a%20reset%20link.", request));
   }
   setSessionCookie(signSession(user));
+  if (user.mustChangePassword) return NextResponse.redirect(appRedirectUrl("/change-password", request));
   return NextResponse.redirect(appRedirectUrl(homePathForRole(user.role), request));
 }
