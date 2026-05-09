@@ -76,3 +76,20 @@ export function homePathForRole(role: Role) {
   if (role === "APPROVER") return "/approver";
   return "/dashboard";
 }
+
+function baseAppUrl(request?: Request) {
+  const configuredUrl = process.env.APP_URL?.trim();
+  if (configuredUrl) return configuredUrl;
+
+  const forwardedHost = request?.headers.get("x-forwarded-host") || request?.headers.get("host");
+  if (forwardedHost && !forwardedHost.startsWith("localhost") && !forwardedHost.startsWith("127.0.0.1")) {
+    const protocol = request?.headers.get("x-forwarded-proto") || "https";
+    return `${protocol}://${forwardedHost}`;
+  }
+
+  return request?.url || "http://localhost:3000";
+}
+
+export function appRedirectUrl(path: string, request?: Request) {
+  return new URL(path, baseAppUrl(request));
+}
