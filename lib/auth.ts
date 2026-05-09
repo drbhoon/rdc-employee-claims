@@ -71,6 +71,16 @@ export function canManageAll(role: Role) {
   return role === "ADMIN" || role === "ACCOUNTS";
 }
 
+export function isSuperAdmin(user: Pick<SessionUser, "employeeId" | "role">) {
+  return user.role === "ADMIN" && user.employeeId === "SUPERADMIN";
+}
+
+export async function requireSuperAdmin() {
+  const user = await requireUser(["ADMIN"]);
+  if (!isSuperAdmin(user)) redirect("/admin?error=Only%20superadmin%20can%20manage%20employee%20master%20uploads.");
+  return user;
+}
+
 export function homePathForRole(role: Role) {
   if (role === "ADMIN") return "/admin";
   if (role === "ACCOUNTS") return "/accounts";

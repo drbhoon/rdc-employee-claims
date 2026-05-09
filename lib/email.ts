@@ -19,7 +19,7 @@ export async function sendMail({ to, subject, html }: MailArgs) {
     secure: Number(SMTP_PORT) === 465,
     auth: SMTP_USER && SMTP_PASS ? { user: SMTP_USER, pass: SMTP_PASS } : undefined
   });
-  await transporter.sendMail({ from: SMTP_FROM, to, subject, html });
+  return transporter.sendMail({ from: SMTP_FROM, to, subject, html });
 }
 
 export function claimEmailHtml(args: {

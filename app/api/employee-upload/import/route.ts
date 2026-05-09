@@ -1,12 +1,12 @@
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { getSession, isSuperAdmin } from "@/lib/auth";
 import { clean, cleanEmail, normalizeBool, parseEmployeeUpload, validateRows } from "@/lib/employeeUpload";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(request: Request) {
   const user = await getSession();
-  if (!user || user.role !== "ADMIN") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!user || !isSuperAdmin(user)) return NextResponse.json({ error: "Only superadmin can import employee master data." }, { status: 403 });
   const form = await request.formData();
   const file = form.get("file") as File | null;
   const defaultPassword = String(form.get("defaultPassword") || process.env.DEFAULT_EMPLOYEE_PASSWORD || "Welcome@123");

@@ -47,6 +47,8 @@ Required for production:
 - `DATABASE_URL`
 - `NEXTAUTH_SECRET`
 - `APP_URL`
+- `SUPERADMIN_EMAIL`
+- `SUPERADMIN_PASSWORD`
 
 Optional for email and uploads:
 
@@ -57,6 +59,7 @@ Optional for email and uploads:
 - `SMTP_FROM` (use `noreply@rdc.in` in Railway)
 - `DEFAULT_EMPLOYEE_PASSWORD`
 - `MAX_UPLOAD_SIZE_MB`
+- `SEED_DEMO_USERS` (keep `false` in production)
 
 ## Prisma Commands
 
@@ -68,16 +71,15 @@ npm run prisma:seed
 
 Use `prisma:dev` locally to create and apply migrations. Use `prisma:migrate` on Railway to deploy committed migration files.
 
-## Seed Logins
+## Superadmin Login
 
-| Role | Email ID | Employee ID | Password |
+Railway startup always creates or updates one built-in superadmin user:
+
+| Role | Employee ID | Email ID | Password Source |
 | --- | --- | --- | --- |
-| Admin | admin@rdc.test | ADMIN001 | Admin@123 |
-| Accounts Verifier | accounts.verifier@rdc.test | ACC001 | Accounts@123 |
-| User | employee@rdc.test | EMP001 | Employee@123 |
-| RM Recommender | rm@rdc.test | RM001 | Manager@123 |
-| Level1 Approver | level1@rdc.test | LVL1001 | Level1@123 |
-| Level2 Approver | level2@rdc.test | LVL2001 | Level2@123 |
+| Superadmin | SUPERADMIN | `SUPERADMIN_EMAIL` | `SUPERADMIN_PASSWORD` |
+
+Use Railway variables to set or reset this password, then redeploy/restart the service. Only this `SUPERADMIN` login can download, validate, import, add, update, or delete employee master records. Demo users are no longer seeded unless `SEED_DEMO_USERS=true`.
 
 ## Railway Deployment
 
@@ -87,8 +89,8 @@ Use `prisma:dev` locally to create and apply migrations. Use `prisma:migrate` on
 4. Add a Railway PostgreSQL service.
 5. Set environment variables in the web service, especially `DATABASE_URL`, `NEXTAUTH_SECRET`, `APP_URL`, and SMTP settings if email is required.
 6. Deploy the app.
-7. Railway uses `railway:start`, which runs migrations and seeds the test users before starting Next.js.
-8. Test login with `admin@rdc.test / Admin@123`.
+7. Railway uses `railway:start`, which runs migrations and recreates the superadmin before starting Next.js.
+8. Test login with your `SUPERADMIN_EMAIL / SUPERADMIN_PASSWORD`.
 
 ## GitHub Push
 
@@ -108,6 +110,8 @@ Admin can download the template from the Admin dashboard. Upload columns:
 `action`, `employee_id`, `employee_name`, `login_id`, `password`, `mobile`, `department`, `location`, `plant`, `cost_center`, `accounts_name`, `accounts_email`, `rm_name`, `rm_email`, `level1_name`, `level1_email`, `level2_name`, `level2_email`, `role`, `is_active`
 
 Actions allowed: `ADD`, `UPDATE`, `DELETE`. Accounts, Level1, and Level2 are mandatory. RM is optional; when present, RM receives the claim after Accounts as a recommending authority before Level1. DELETE rows are blocked when the employee has open claims.
+
+For new employees, the login ID is the uploaded `login_id` email. If the row has a `password`, that password is imported. Otherwise the app uses the upload screen default password, then `DEFAULT_EMPLOYEE_PASSWORD`, then `Welcome@123`.
 
 ## Notes
 

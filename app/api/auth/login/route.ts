@@ -12,7 +12,7 @@ export async function POST(request: Request) {
   const password = String(form.get("password") || "");
   const user = await prisma.user.findUnique({ where: { email: loginId } });
   if (!user || !user.isActive) {
-    return NextResponse.redirect(appRedirectUrl("/login?error=Email%20ID%20not%20found%20or%20inactive.%20Please%20check%20uploaded%20employee%20data.", request));
+    return NextResponse.redirect(appRedirectUrl("/login?error=Email%20ID%20not%20found%20or%20inactive.%20Please%20check%20uploaded%20login_id%20in%20employee%20master.", request));
   }
   if (!(await verifyPassword(password, user.passwordHash))) {
     return NextResponse.redirect(appRedirectUrl("/login?error=Incorrect%20password.%20Use%20Forgot%20password%20to%20receive%20a%20reset%20link.", request));

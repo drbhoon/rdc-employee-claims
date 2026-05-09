@@ -1,11 +1,13 @@
 import { saveApprovalRule, saveClaimType } from "@/lib/actions";
-import { requireUser } from "@/lib/auth";
+import { isSuperAdmin, requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Shell } from "@/components/Shell";
 import { EmployeeUploadPanel } from "@/components/EmployeeUploadPanel";
+import { EmailTestPanel } from "@/components/EmailTestPanel";
 
-export default async function AdminPage() {
-  await requireUser(["ADMIN"]);
+export default async function AdminPage({ searchParams }: { searchParams: { error?: string } }) {
+  const user = await requireUser(["ADMIN"]);
+  const superAdmin = isSuperAdmin(user);
   const [users, claimTypes, rules, batches] = await Promise.all([
     prisma.user.findMany({ orderBy: { employeeId: "asc" } }),
     prisma.claimType.findMany({ orderBy: { name: "asc" } }),
@@ -14,10 +16,15 @@ export default async function AdminPage() {
   ]);
   return (
     <Shell title="Admin Dashboard">
+      {searchParams.error && <div className="mb-4 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">{searchParams.error}</div>}
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="card">
           <h2 className="mb-3 font-semibold">Employee Master Upload</h2>
-          <EmployeeUploadPanel />
+          {superAdmin ? (
+            <EmployeeUploadPanel />
+          ) : (
+            <div className="rounded border border-line bg-panel p-3 text-sm text-muted">Only superadmin can add, update, or delete employee master records.</div>
+          )}
           <div className="mt-4 overflow-x-auto"><table><thead><tr><th>File</th><th>Total</th><th>Valid</th><th>Errors</th><th>Imported</th><th>Status</th></tr></thead><tbody>{batches.map((b) => <tr key={b.id}><td>{b.fileName}</td><td>{b.totalRows}</td><td>{b.validRows}</td><td>{b.errorRows}</td><td>{b.importedRows}</td><td>{b.status}</td></tr>)}</tbody></table></div>
         </section>
         <section className="card">
@@ -33,6 +40,12 @@ export default async function AdminPage() {
           <table><thead><tr><th>Min</th><th>Max</th><th>Level1</th><th>Level2</th><th>Active</th></tr></thead><tbody>{rules.map((r) => <tr key={r.id}><td>{String(r.minAmount)}</td><td>{r.maxAmount ? String(r.maxAmount) : "No limit"}</td><td>{String(r.requiresLevel1)}</td><td>{String(r.requiresLevel2)}</td><td>{String(r.isActive)}</td></tr>)}</tbody></table>
         </section>
       </div>
+      {superAdmin && (
+        <section className="card mt-4">
+          <h2 className="mb-3 font-semibold">Email Test</h2>
+          <EmailTestPanel defaultTo={user.email || ""} />
+        </section>
+      )}
       <section className="card mt-4">
         <h2 className="mb-3 font-semibold">Claim Type Master</h2>
         <form action={saveClaimType} className="mb-4 grid gap-2 md:grid-cols-6">

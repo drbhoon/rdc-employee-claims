@@ -138,6 +138,7 @@ export async function validateRows(rows: EmployeeUploadRow[]) {
 
     if (!["ADD", "UPDATE", "DELETE"].includes(action)) rowErrors.push("action must be ADD, UPDATE, or DELETE");
     if (!employeeId) rowErrors.push("employee_id is required");
+    if (employeeId.toUpperCase() === "SUPERADMIN") rowErrors.push("SUPERADMIN is reserved and cannot be added, updated, or deleted by employee upload");
     if (action !== "DELETE" && !clean(row.employee_name)) rowErrors.push("employee_name is required");
     if (!loginId) rowErrors.push("login_id is required");
     if (loginId && !validEmail(loginId)) rowErrors.push("login_id must be a valid email");

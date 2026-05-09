@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { getSession, isSuperAdmin } from "@/lib/auth";
 import { parseEmployeeUpload, validateRows } from "@/lib/employeeUpload";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(request: Request) {
   const user = await getSession();
-  if (!user || user.role !== "ADMIN") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!user || !isSuperAdmin(user)) return NextResponse.json({ error: "Only superadmin can validate employee master uploads." }, { status: 403 });
   const form = await request.formData();
   const file = form.get("file") as File | null;
   if (!file) return NextResponse.json({ error: "Missing file" }, { status: 400 });
