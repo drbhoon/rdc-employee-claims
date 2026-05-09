@@ -79,8 +79,8 @@ export function homePathForRole(role: Role) {
 }
 
 function baseAppUrl(request?: Request) {
-  const configuredUrl = process.env.APP_URL?.trim();
-  if (configuredUrl && !isLocalhostUrl(configuredUrl)) return configuredUrl;
+  const configuredUrl = normalizePublicUrl(process.env.APP_URL);
+  if (configuredUrl) return configuredUrl;
 
   const forwardedHost = request?.headers.get("x-forwarded-host") || request?.headers.get("host");
   if (forwardedHost && !forwardedHost.startsWith("localhost") && !forwardedHost.startsWith("127.0.0.1")) {
@@ -97,11 +97,15 @@ export function appRedirectUrl(path: string, request?: Request) {
   return new URL(path, baseAppUrl(request));
 }
 
-function isLocalhostUrl(value: string) {
+function normalizePublicUrl(value?: string) {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+
   try {
-    const url = new URL(value);
-    return url.hostname === "localhost" || url.hostname === "127.0.0.1";
+    const url = new URL(trimmed.includes("://") ? trimmed : `https://${trimmed}`);
+    if (url.hostname === "localhost" || url.hostname === "127.0.0.1") return null;
+    return url.origin;
   } catch {
-    return false;
+    return null;
   }
 }
