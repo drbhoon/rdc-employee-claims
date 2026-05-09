@@ -75,6 +75,7 @@ Use `prisma:dev` locally to create and apply migrations. Use `prisma:migrate` on
 | Admin | admin@rdc.test | ADMIN001 | Admin@123 |
 | Accounts Verifier | accounts.verifier@rdc.test | ACC001 | Accounts@123 |
 | User | employee@rdc.test | EMP001 | Employee@123 |
+| RM Recommender | rm@rdc.test | RM001 | Manager@123 |
 | Level1 Approver | level1@rdc.test | LVL1001 | Level1@123 |
 | Level2 Approver | level2@rdc.test | LVL2001 | Level2@123 |
 
@@ -106,7 +107,7 @@ Admin can download the template from the Admin dashboard. Upload columns:
 
 `action`, `employee_id`, `employee_name`, `login_id`, `password`, `mobile`, `department`, `location`, `plant`, `cost_center`, `accounts_name`, `accounts_email`, `rm_name`, `rm_email`, `level1_name`, `level1_email`, `level2_name`, `level2_email`, `role`, `is_active`
 
-Actions allowed: `ADD`, `UPDATE`, `DELETE`. Accounts, Level1, and Level2 are mandatory. RM is optional and informational only. DELETE rows are blocked when the employee has open claims.
+Actions allowed: `ADD`, `UPDATE`, `DELETE`. Accounts, Level1, and Level2 are mandatory. RM is optional; when present, RM receives the claim after Accounts as a recommending authority before Level1. DELETE rows are blocked when the employee has open claims.
 
 ## Notes
 

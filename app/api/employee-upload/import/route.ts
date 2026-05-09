@@ -71,6 +71,7 @@ export async function POST(request: Request) {
       }
     });
     await ensureWorkflowLogin(clean(row.accounts_name), cleanEmail(row.accounts_email), "ACCOUNTS", defaultPassword);
+    if (cleanEmail(row.rm_email)) await ensureWorkflowLogin(clean(row.rm_name) || "RM", cleanEmail(row.rm_email), "APPROVER", defaultPassword);
     await ensureWorkflowLogin(clean(row.level1_name), cleanEmail(row.level1_email), "APPROVER", defaultPassword);
     await ensureWorkflowLogin(clean(row.level2_name), cleanEmail(row.level2_email), "APPROVER", defaultPassword);
     imported++;

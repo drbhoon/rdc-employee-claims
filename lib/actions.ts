@@ -194,7 +194,7 @@ export async function accountsAction(formData: FormData) {
     const validation = await validateApproverMapping(claim.employeeId, Number(claim.totalAmount));
     if (!validation.ok || !validation.rule || !validation.employee) actionError(errorPath, `Approval routing: ${validation.message}`);
     newStatus = "PENDING_LEVEL_1_APPROVAL";
-    pendingWith = validation.employee.level1Email!;
+    pendingWith = validation.employee.rmEmail || validation.employee.level1Email!;
     const level = requiredApprovalLevel(validation.rule);
     await prisma.claimHeader.update({ where: { id }, data: { approvalLevelRequired: level } });
   } else if (action === "downloaded") {
@@ -218,7 +218,7 @@ export async function accountsAction(formData: FormData) {
   const employee = await prisma.user.findUnique({ where: { employeeId: claim.employeeId } });
   const nextApprover = pendingWith ? await prisma.user.findFirst({ where: { OR: [{ employeeId: pendingWith }, { email: pendingWith }] } }) : null;
   if (["RETURNED_BY_ACCOUNTS", "REJECTED_BY_ACCOUNTS"].includes(newStatus)) await notifyClaim(updated, employee?.email, "Review Accounts comments");
-  if (newStatus === "PENDING_LEVEL_1_APPROVAL") await notifyClaim(updated, nextApprover?.email, "Level 1 approval required");
+  if (newStatus === "PENDING_LEVEL_1_APPROVAL") await notifyClaim(updated, nextApprover?.email || pendingWith, pendingWith === employee?.rmEmail ? "RM recommendation required" : "Level 1 approval required");
   revalidatePath("/accounts");
   revalidatePath("/approver");
   revalidatePath("/dashboard");
@@ -234,6 +234,7 @@ export async function approverAction(formData: FormData) {
   if (claim.currentPendingWith !== user.email && claim.currentPendingWith !== user.employeeId && user.role !== "ADMIN") actionError(errorPath, "Approver action: this claim is not pending with your login email.");
   if (!["PENDING_LEVEL_1_APPROVAL", "PENDING_LEVEL_2_APPROVAL", "PENDING_LEVEL_3_APPROVAL"].includes(claim.currentStatus)) actionError(errorPath, "Approver action: this claim is not pending approval.");
   const employee = await prisma.user.findUniqueOrThrow({ where: { employeeId: claim.employeeId } });
+  const isRmRecommendation = claim.currentStatus === "PENDING_LEVEL_1_APPROVAL" && !!employee.rmEmail && claim.currentPendingWith === employee.rmEmail;
   let comments: string | undefined;
   let newStatus: ClaimStatus;
   let pendingWith: string | null = null;
@@ -243,8 +244,16 @@ export async function approverAction(formData: FormData) {
       claim.currentStatus === "PENDING_LEVEL_1_APPROVAL" ? "REJECTED_BY_LEVEL_1" :
       claim.currentStatus === "PENDING_LEVEL_2_APPROVAL" ? "REJECTED_BY_LEVEL_2" : "REJECTED_BY_LEVEL_3";
   } else if (claim.currentStatus === "PENDING_LEVEL_1_APPROVAL" && claim.approvalLevelRequired >= 2) {
-    newStatus = "PENDING_LEVEL_2_APPROVAL";
-    pendingWith = employee.level2Email!;
+    if (isRmRecommendation) {
+      newStatus = "PENDING_LEVEL_1_APPROVAL";
+      pendingWith = employee.level1Email!;
+    } else {
+      newStatus = "PENDING_LEVEL_2_APPROVAL";
+      pendingWith = employee.level2Email!;
+    }
+  } else if (isRmRecommendation) {
+    newStatus = "PENDING_LEVEL_1_APPROVAL";
+    pendingWith = employee.level1Email!;
   } else {
     newStatus = "FINAL_APPROVED";
   }
@@ -253,13 +262,14 @@ export async function approverAction(formData: FormData) {
     data: { currentStatus: newStatus, currentPendingWith: pendingWith, finalApprovedAt: newStatus === "FINAL_APPROVED" ? new Date() : claim.finalApprovedAt }
   });
   const actorName =
+    isRmRecommendation ? (employee.rmName || user.name) :
     claim.currentStatus === "PENDING_LEVEL_1_APPROVAL" ? (employee.level1Name || user.name) :
     claim.currentStatus === "PENDING_LEVEL_2_APPROVAL" ? (employee.level2Name || user.name) :
     user.name;
   await addHistory({ claimHeaderId: id, actor: { ...user, name: actorName }, action: `APPROVER_${action.toUpperCase()}`, comments, previousStatus: claim.currentStatus, newStatus });
   const employeeMail = await prisma.user.findUnique({ where: { employeeId: claim.employeeId } });
   const next = pendingWith ? await prisma.user.findFirst({ where: { OR: [{ employeeId: pendingWith }, { email: pendingWith }] } }) : null;
-  if (pendingWith) await notifyClaim(updated, next?.email, "Approval required");
+  if (pendingWith) await notifyClaim(updated, next?.email || pendingWith, isRmRecommendation ? "Level 1 approval required" : "Level 2 approval required");
   if (newStatus === "FINAL_APPROVED") await notifyClaim(updated, [employeeMail?.email, employee.level1Email, employee.level2Email, employee.accountsEmail].filter(Boolean) as string[], "Claim final approved");
   if (String(newStatus).startsWith("REJECTED")) await notifyClaim(updated, [employeeMail?.email, employee.accountsEmail].filter(Boolean) as string[], "Claim rejected");
   revalidatePath("/approver");

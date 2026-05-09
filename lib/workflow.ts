@@ -71,8 +71,8 @@ export async function notifyClaim(claim: ClaimHeader, to: string | string[] | un
 
 export function statusLabel(status: string) {
   const labels: Record<string, string> = {
-    PENDING_LEVEL_1_APPROVAL: "Pending Level1 Approval",
-    REJECTED_BY_LEVEL_1: "Rejected By Level1",
+    PENDING_LEVEL_1_APPROVAL: "Pending RM/Level1 Approval",
+    REJECTED_BY_LEVEL_1: "Rejected By RM/Level1",
     PENDING_LEVEL_2_APPROVAL: "Pending Level2 Approval",
     REJECTED_BY_LEVEL_2: "Rejected By Level2",
     PENDING_LEVEL_3_APPROVAL: "Pending Level3 Approval",

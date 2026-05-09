@@ -70,6 +70,13 @@ async function main() {
     email: "accounts.verifier@rdc.test"
   });
   await upsertUser({
+    employeeId: "RM001",
+    name: "Reporting Manager",
+    password: "Manager@123",
+    role: "APPROVER",
+    email: "rm@rdc.test"
+  });
+  await upsertUser({
     employeeId: "LVL1001",
     name: "Level1 Approver",
     password: "Level1@123",
