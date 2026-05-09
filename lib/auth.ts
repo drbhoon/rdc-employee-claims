@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 export type SessionUser = Pick<User, "employeeId" | "name" | "role" | "email" | "isActive" | "mustChangePassword">;
 
 const COOKIE = "rdc_session";
+const DEFAULT_PUBLIC_APP_URL = "https://rdc-employee-claims-production.up.railway.app";
 
 function secret() {
   return process.env.NEXTAUTH_SECRET || "dev-secret-change-me";
@@ -79,7 +80,7 @@ export function homePathForRole(role: Role) {
 
 function baseAppUrl(request?: Request) {
   const configuredUrl = process.env.APP_URL?.trim();
-  if (configuredUrl) return configuredUrl;
+  if (configuredUrl && !isLocalhostUrl(configuredUrl)) return configuredUrl;
 
   const forwardedHost = request?.headers.get("x-forwarded-host") || request?.headers.get("host");
   if (forwardedHost && !forwardedHost.startsWith("localhost") && !forwardedHost.startsWith("127.0.0.1")) {
@@ -87,9 +88,20 @@ function baseAppUrl(request?: Request) {
     return `${protocol}://${forwardedHost}`;
   }
 
+  if (process.env.NODE_ENV === "production") return DEFAULT_PUBLIC_APP_URL;
+
   return request?.url || "http://localhost:3000";
 }
 
 export function appRedirectUrl(path: string, request?: Request) {
   return new URL(path, baseAppUrl(request));
+}
+
+function isLocalhostUrl(value: string) {
+  try {
+    const url = new URL(value);
+    return url.hostname === "localhost" || url.hostname === "127.0.0.1";
+  } catch {
+    return false;
+  }
 }
