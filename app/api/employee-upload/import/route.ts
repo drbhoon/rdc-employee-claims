@@ -26,6 +26,26 @@ export async function POST(request: Request) {
 
     const password = clean(row.password) || defaultPassword;
     const passwordHash = await bcrypt.hash(password, 12);
+    const updateData = {
+      name: clean(row.employee_name),
+      email: cleanEmail(row.login_id),
+      mobile: clean(row.mobile) || null,
+      role: "EMPLOYEE" as const,
+      department: clean(row.department) || null,
+      location: clean(row.location) || null,
+      plant: clean(row.plant) || null,
+      costCenter: clean(row.cost_center) || null,
+      accountsName: clean(row.accounts_name),
+      accountsEmail: cleanEmail(row.accounts_email),
+      rmName: clean(row.rm_name) || null,
+      rmEmail: cleanEmail(row.rm_email) || null,
+      level1Name: clean(row.level1_name),
+      level1Email: cleanEmail(row.level1_email),
+      level2Name: clean(row.level2_name),
+      level2Email: cleanEmail(row.level2_email),
+      isActive: normalizeBool(row.is_active),
+      ...(clean(row.password) ? { passwordHash, mustChangePassword: true } : {})
+    };
     await prisma.user.upsert({
       where: { employeeId },
       create: {
@@ -50,25 +70,7 @@ export async function POST(request: Request) {
         isActive: normalizeBool(row.is_active),
         mustChangePassword: true
       },
-      update: {
-        name: clean(row.employee_name),
-        email: cleanEmail(row.login_id),
-        mobile: clean(row.mobile) || null,
-        role: "EMPLOYEE",
-        department: clean(row.department) || null,
-        location: clean(row.location) || null,
-        plant: clean(row.plant) || null,
-        costCenter: clean(row.cost_center) || null,
-        accountsName: clean(row.accounts_name),
-        accountsEmail: cleanEmail(row.accounts_email),
-        rmName: clean(row.rm_name) || null,
-        rmEmail: cleanEmail(row.rm_email) || null,
-        level1Name: clean(row.level1_name),
-        level1Email: cleanEmail(row.level1_email),
-        level2Name: clean(row.level2_name),
-        level2Email: cleanEmail(row.level2_email),
-        isActive: normalizeBool(row.is_active)
-      }
+      update: updateData
     });
     await ensureWorkflowLogin(clean(row.accounts_name), cleanEmail(row.accounts_email), "ACCOUNTS", defaultPassword);
     if (cleanEmail(row.rm_email)) await ensureWorkflowLogin(clean(row.rm_name) || "RM", cleanEmail(row.rm_email), "APPROVER", defaultPassword);
@@ -89,8 +91,7 @@ async function ensureWorkflowLogin(name: string, email: string, role: "ACCOUNTS"
       where: { id: existing.id },
       data: {
         role: nextRole,
-        isActive: true,
-        name: existing.role === "EMPLOYEE" ? existing.name : name || existing.name
+        isActive: true
       }
     });
     return;
