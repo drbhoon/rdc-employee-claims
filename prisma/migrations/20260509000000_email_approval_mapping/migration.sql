@@ -1,0 +1,8 @@
+ALTER TABLE "User" ADD COLUMN "accountsName" TEXT;
+ALTER TABLE "User" ADD COLUMN "accountsEmail" TEXT;
+ALTER TABLE "User" ADD COLUMN "rmName" TEXT;
+ALTER TABLE "User" ADD COLUMN "rmEmail" TEXT;
+ALTER TABLE "User" ADD COLUMN "level1Name" TEXT;
+ALTER TABLE "User" ADD COLUMN "level1Email" TEXT;
+ALTER TABLE "User" ADD COLUMN "level2Name" TEXT;
+ALTER TABLE "User" ADD COLUMN "level2Email" TEXT;

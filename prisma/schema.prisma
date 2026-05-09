@@ -49,6 +49,14 @@ model User {
   location           String?
   plant              String?
   costCenter         String?
+  accountsName       String?
+  accountsEmail      String?
+  rmName             String?
+  rmEmail            String?
+  level1Name         String?
+  level1Email        String?
+  level2Name         String?
+  level2Email        String?
   reportingManagerId String?
   level2ApproverId   String?
   level3ApproverId   String?

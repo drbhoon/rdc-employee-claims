@@ -10,7 +10,7 @@ export async function POST(request: Request) {
   const file = form.get("file") as File | null;
   if (!file) return NextResponse.json({ error: "Missing file" }, { status: 400 });
   const rows = parseEmployeeUpload(Buffer.from(await file.arrayBuffer()));
-  const { valid, errors } = validateRows(rows);
+  const { valid, errors } = await validateRows(rows);
   const batch = await prisma.employeeUploadBatch.create({
     data: {
       fileName: file.name,

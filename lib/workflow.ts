@@ -17,7 +17,6 @@ export async function findApprovalRule(totalAmount: number) {
 
 export function requiredApprovalLevel(rule: Awaited<ReturnType<typeof findApprovalRule>>) {
   if (!rule) return 0;
-  if (rule.requiresLevel3) return 3;
   if (rule.requiresLevel2) return 2;
   if (rule.requiresLevel1) return 1;
   return 0;
@@ -27,9 +26,9 @@ export async function validateApproverMapping(employeeId: string, totalAmount: n
   const employee = await prisma.user.findUnique({ where: { employeeId } });
   const rule = await findApprovalRule(totalAmount);
   if (!rule) return { ok: false, message: "No active approval rule exists for this claim amount." };
-  if (rule.requiresLevel1 && !employee?.reportingManagerId) return { ok: false, message: "Level 1 approver mapping is missing." };
-  if (rule.requiresLevel2 && !employee?.level2ApproverId) return { ok: false, message: "Level 2 approver mapping is missing." };
-  if (rule.requiresLevel3 && !employee?.level3ApproverId) return { ok: false, message: "Level 3 approver mapping is missing." };
+  if (!employee?.accountsEmail) return { ok: false, message: "Accounts email mapping is missing." };
+  if (rule.requiresLevel1 && !employee?.level1Email) return { ok: false, message: "Level 1 approver email mapping is missing." };
+  if (rule.requiresLevel2 && !employee?.level2Email) return { ok: false, message: "Level 2 approver email mapping is missing." };
   return { ok: true, rule, employee };
 }
 
@@ -72,12 +71,12 @@ export async function notifyClaim(claim: ClaimHeader, to: string | string[] | un
 
 export function statusLabel(status: string) {
   const labels: Record<string, string> = {
-    PENDING_LEVEL_1_APPROVAL: "Pending RM Approval",
-    REJECTED_BY_LEVEL_1: "Rejected By RM",
-    PENDING_LEVEL_2_APPROVAL: "Pending BH/FH Approval",
-    REJECTED_BY_LEVEL_2: "Rejected By BH/FH",
-    PENDING_LEVEL_3_APPROVAL: "Pending COO/CEO Approval",
-    REJECTED_BY_LEVEL_3: "Rejected By COO/CEO"
+    PENDING_LEVEL_1_APPROVAL: "Pending Level1 Approval",
+    REJECTED_BY_LEVEL_1: "Rejected By Level1",
+    PENDING_LEVEL_2_APPROVAL: "Pending Level2 Approval",
+    REJECTED_BY_LEVEL_2: "Rejected By Level2",
+    PENDING_LEVEL_3_APPROVAL: "Pending Level3 Approval",
+    REJECTED_BY_LEVEL_3: "Rejected By Level3"
   };
   if (labels[status]) return labels[status];
   return status.replaceAll("_", " ").toLowerCase().replace(/\b\w/g, (m) => m.toUpperCase());

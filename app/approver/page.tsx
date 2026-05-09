@@ -7,8 +7,8 @@ export default async function ApproverPage() {
   const user = await requireUser(["APPROVER", "ADMIN"]);
   const pending = await prisma.claimHeader.findMany({
     where: {
-      currentPendingWith: user.employeeId,
-      currentStatus: { in: ["PENDING_LEVEL_1_APPROVAL", "PENDING_LEVEL_2_APPROVAL", "PENDING_LEVEL_3_APPROVAL"] }
+      currentPendingWith: { in: [user.email || "", user.employeeId] },
+      currentStatus: { in: ["PENDING_LEVEL_1_APPROVAL", "PENDING_LEVEL_2_APPROVAL"] }
     },
     orderBy: { updatedAt: "desc" }
   });
@@ -18,7 +18,7 @@ export default async function ApproverPage() {
   const approved = await prisma.claimHeader.findMany({ where: { id: { in: approvedIds } }, orderBy: { updatedAt: "desc" } });
   const rejected = await prisma.claimHeader.findMany({ where: { id: { in: rejectedIds } }, orderBy: { updatedAt: "desc" } });
   return (
-    <Shell title="Approver Dashboard (RM / BH-FH / COO-CEO)">
+    <Shell title="Approver Dashboard (Level1 / Level2)">
       <div className="space-y-6">
         <section><h2 className="mb-2 font-semibold">Pending My Approval</h2><ClaimTable claims={pending} /></section>
         <section><h2 className="mb-2 font-semibold">Approved by Me</h2><ClaimTable claims={approved} /></section>

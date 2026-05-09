@@ -12,10 +12,16 @@ export default async function ClaimDetail({ params, searchParams }: { params: { 
   const user = await requireUser();
   const claim = await prisma.claimHeader.findUnique({
     where: { id: params.id },
-    include: { lines: { include: { claimType: true, attachments: true } }, history: { orderBy: { actionDate: "desc" } } }
+    include: { employee: true, lines: { include: { claimType: true, attachments: true } }, history: { orderBy: { actionDate: "desc" } } }
   });
   if (!claim) notFound();
-  const canSee = user.role === "ADMIN" || user.role === "ACCOUNTS" || claim.employeeId === user.employeeId || claim.currentPendingWith === user.employeeId || claim.history.some((h) => h.actionByEmployeeId === user.employeeId);
+  const canSee =
+    user.role === "ADMIN" ||
+    (user.role === "ACCOUNTS" && claim.employee.accountsEmail === user.email) ||
+    claim.employeeId === user.employeeId ||
+    claim.currentPendingWith === user.employeeId ||
+    claim.currentPendingWith === user.email ||
+    claim.history.some((h) => h.actionByEmployeeId === user.employeeId);
   if (!canSee) notFound();
   const canEdit = claim.employeeId === user.employeeId && ["DRAFT", "RETURNED_BY_ACCOUNTS"].includes(claim.currentStatus);
   const canAccountsAudit = ["ACCOUNTS", "ADMIN"].includes(user.role) && claim.currentStatus === "SUBMITTED_TO_ACCOUNTS";

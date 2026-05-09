@@ -10,9 +10,14 @@ async function upsertUser(data: {
   password: string;
   role: Role;
   email: string;
-  reportingManagerId?: string;
-  level2ApproverId?: string;
-  level3ApproverId?: string;
+  accountsName?: string;
+  accountsEmail?: string;
+  rmName?: string;
+  rmEmail?: string;
+  level1Name?: string;
+  level1Email?: string;
+  level2Name?: string;
+  level2Email?: string;
 }) {
   const passwordHash = await bcrypt.hash(data.password, 12);
   await prisma.user.upsert({
@@ -22,9 +27,14 @@ async function upsertUser(data: {
       email: data.email,
       passwordHash,
       role: data.role,
-      reportingManagerId: data.reportingManagerId,
-      level2ApproverId: data.level2ApproverId,
-      level3ApproverId: data.level3ApproverId,
+      accountsName: data.accountsName,
+      accountsEmail: data.accountsEmail,
+      rmName: data.rmName,
+      rmEmail: data.rmEmail,
+      level1Name: data.level1Name,
+      level1Email: data.level1Email,
+      level2Name: data.level2Name,
+      level2Email: data.level2Email,
       isActive: true
     },
     create: {
@@ -37,9 +47,14 @@ async function upsertUser(data: {
       location: "Mumbai",
       plant: "Plant A",
       costCenter: data.role === "ACCOUNTS" ? "FIN100" : "OPS100",
-      reportingManagerId: data.reportingManagerId,
-      level2ApproverId: data.level2ApproverId,
-      level3ApproverId: data.level3ApproverId,
+      accountsName: data.accountsName,
+      accountsEmail: data.accountsEmail,
+      rmName: data.rmName,
+      rmEmail: data.rmEmail,
+      level1Name: data.level1Name,
+      level1Email: data.level1Email,
+      level2Name: data.level2Name,
+      level2Email: data.level2Email,
       isActive: true
     }
   });
@@ -52,40 +67,21 @@ async function main() {
     name: "Accounts Verifier",
     password: "Accounts@123",
     role: "ACCOUNTS",
-    email: "accounts.verifier@rdc.test",
-    reportingManagerId: "RM001",
-    level2ApproverId: "BHFH001",
-    level3ApproverId: "COOCEO001"
+    email: "accounts.verifier@rdc.test"
   });
   await upsertUser({
-    employeeId: "RM001",
-    name: "Reporting Manager",
-    password: "Manager@123",
+    employeeId: "LVL1001",
+    name: "Level1 Approver",
+    password: "Level1@123",
     role: "APPROVER",
-    email: "rm@rdc.test",
-    reportingManagerId: "RM001",
-    level2ApproverId: "BHFH001",
-    level3ApproverId: "COOCEO001"
+    email: "level1@rdc.test"
   });
   await upsertUser({
-    employeeId: "BHFH001",
-    name: "Business Functional Head",
-    password: "Head@123",
+    employeeId: "LVL2001",
+    name: "Level2 Approver",
+    password: "Level2@123",
     role: "APPROVER",
-    email: "bhfh@rdc.test",
-    reportingManagerId: "RM001",
-    level2ApproverId: "BHFH001",
-    level3ApproverId: "COOCEO001"
-  });
-  await upsertUser({
-    employeeId: "COOCEO001",
-    name: "COO CEO Approver",
-    password: "Cooceo@123",
-    role: "APPROVER",
-    email: "cooceo@rdc.test",
-    reportingManagerId: "RM001",
-    level2ApproverId: "BHFH001",
-    level3ApproverId: "COOCEO001"
+    email: "level2@rdc.test"
   });
   await upsertUser({
     employeeId: "EMP001",
@@ -93,9 +89,14 @@ async function main() {
     password: "Employee@123",
     role: "EMPLOYEE",
     email: "employee@rdc.test",
-    reportingManagerId: "RM001",
-    level2ApproverId: "BHFH001",
-    level3ApproverId: "COOCEO001"
+    accountsName: "Accounts Verifier",
+    accountsEmail: "accounts.verifier@rdc.test",
+    rmName: "Reporting Manager",
+    rmEmail: "rm@rdc.test",
+    level1Name: "Level1 Approver",
+    level1Email: "level1@rdc.test",
+    level2Name: "Level2 Approver",
+    level2Email: "level2@rdc.test"
   });
 
   const claimTypes = employeeExpenseTypes;
@@ -115,8 +116,8 @@ async function main() {
   await prisma.approvalRule.deleteMany({});
   await prisma.approvalRule.createMany({
     data: [
-      { minAmount: 0, maxAmount: 25000, requiresLevel1: true, requiresLevel2: true, requiresLevel3: false },
-      { minAmount: 25000.01, maxAmount: null, requiresLevel1: true, requiresLevel2: true, requiresLevel3: true }
+      { minAmount: 0, maxAmount: 25000, requiresLevel1: true, requiresLevel2: false, requiresLevel3: false },
+      { minAmount: 25000.01, maxAmount: null, requiresLevel1: true, requiresLevel2: true, requiresLevel3: false }
     ]
   });
 }

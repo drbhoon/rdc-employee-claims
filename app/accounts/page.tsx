@@ -4,8 +4,11 @@ import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export default async function AccountsPage() {
-  await requireUser(["ACCOUNTS", "ADMIN"]);
-  const claims = await prisma.claimHeader.findMany({ orderBy: { updatedAt: "desc" } });
+  const user = await requireUser(["ACCOUNTS", "ADMIN"]);
+  const claims = await prisma.claimHeader.findMany({
+    where: user.role === "ADMIN" ? undefined : { employee: { accountsEmail: user.email || "" } },
+    orderBy: { updatedAt: "desc" }
+  });
   const groups = [
     ["Pending Accounts Audit", ["SUBMITTED_TO_ACCOUNTS"]],
     ["Returned by Accounts", ["RETURNED_BY_ACCOUNTS"]],

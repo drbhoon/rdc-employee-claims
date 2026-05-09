@@ -18,17 +18,24 @@ export const claimStatuses: ClaimStatus[] = [
 ];
 
 export const uploadColumns = [
+  "action",
   "employee_id",
   "employee_name",
-  "email",
+  "login_id",
+  "password",
   "mobile",
   "department",
   "location",
   "plant",
   "cost_center",
-  "reporting_manager_id",
-  "level_2_approver_id",
-  "level_3_approver_id",
+  "accounts_name",
+  "accounts_email",
+  "rm_name",
+  "rm_email",
+  "level1_name",
+  "level1_email",
+  "level2_name",
+  "level2_email",
   "role",
   "is_active"
 ];
