@@ -63,6 +63,7 @@ export async function getSession(): Promise<SessionUser | null> {
 export async function requireUser(roles?: Role[]) {
   const user = await getSession();
   if (!user) redirect("/login");
+  if (user.mustChangePassword) redirect("/change-password");
   if (roles && !roles.includes(user.role)) redirect("/dashboard");
   return user;
 }
@@ -77,7 +78,7 @@ export function isSuperAdmin(user: Pick<SessionUser, "employeeId" | "role">) {
 
 export async function requireSuperAdmin() {
   const user = await requireUser(["ADMIN"]);
-  if (!isSuperAdmin(user)) redirect("/admin?error=Only%20superadmin%20can%20manage%20employee%20master%20uploads.");
+  if (!isSuperAdmin(user)) redirect("/dashboard");
   return user;
 }
 

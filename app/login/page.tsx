@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 export default async function LoginPage({ searchParams }: { searchParams: { error?: string; message?: string } }) {
   const session = await getSession();
+  if (session?.mustChangePassword) redirect("/change-password");
   if (session) redirect(homePathForRole(session.role));
   return (
     <main className="flex min-h-screen items-center justify-center bg-panel px-4">

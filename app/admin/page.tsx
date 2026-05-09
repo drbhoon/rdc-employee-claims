@@ -1,51 +1,36 @@
-import { saveApprovalRule, saveClaimType } from "@/lib/actions";
-import { isSuperAdmin, requireUser } from "@/lib/auth";
+import { saveClaimType } from "@/lib/actions";
+import { requireSuperAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Shell } from "@/components/Shell";
 import { EmployeeUploadPanel } from "@/components/EmployeeUploadPanel";
 import { EmailTestPanel } from "@/components/EmailTestPanel";
+import { ResetDatabasePanel } from "@/components/ResetDatabasePanel";
 
 export default async function AdminPage({ searchParams }: { searchParams: { error?: string } }) {
-  const user = await requireUser(["ADMIN"]);
-  const superAdmin = isSuperAdmin(user);
-  const [users, claimTypes, rules, batches] = await Promise.all([
+  const user = await requireSuperAdmin();
+  const [users, claimTypes, batches] = await Promise.all([
     prisma.user.findMany({ orderBy: { employeeId: "asc" } }),
     prisma.claimType.findMany({ orderBy: { name: "asc" } }),
-    prisma.approvalRule.findMany({ orderBy: { minAmount: "asc" } }),
     prisma.employeeUploadBatch.findMany({ orderBy: { uploadedAt: "desc" }, take: 5, include: { errors: true } })
   ]);
   return (
     <Shell title="Admin Dashboard">
       {searchParams.error && <div className="mb-4 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">{searchParams.error}</div>}
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4">
         <section className="card">
           <h2 className="mb-3 font-semibold">Employee Master Upload</h2>
-          {superAdmin ? (
-            <EmployeeUploadPanel />
-          ) : (
-            <div className="rounded border border-line bg-panel p-3 text-sm text-muted">Only superadmin can add, update, or delete employee master records.</div>
-          )}
+          <EmployeeUploadPanel />
           <div className="mt-4 overflow-x-auto"><table><thead><tr><th>File</th><th>Total</th><th>Valid</th><th>Errors</th><th>Imported</th><th>Status</th></tr></thead><tbody>{batches.map((b) => <tr key={b.id}><td>{b.fileName}</td><td>{b.totalRows}</td><td>{b.validRows}</td><td>{b.errorRows}</td><td>{b.importedRows}</td><td>{b.status}</td></tr>)}</tbody></table></div>
         </section>
-        <section className="card">
-          <h2 className="mb-3 font-semibold">Approval Rules Master</h2>
-          <form action={saveApprovalRule} className="mb-4 grid gap-2 md:grid-cols-4">
-            <div><label>Min Amount</label><input name="minAmount" type="number" step="0.01" required /></div>
-            <div><label>Max Amount</label><input name="maxAmount" type="number" step="0.01" /></div>
-            <label className="flex items-center gap-2 pt-6"><input className="w-auto" type="checkbox" name="requiresLevel1" defaultChecked />Level1</label>
-            <label className="flex items-center gap-2 pt-6"><input className="w-auto" type="checkbox" name="requiresLevel2" />Level2</label>
-            <label className="flex items-center gap-2"><input className="w-auto" type="checkbox" name="isActive" defaultChecked />Active</label>
-            <button className="btn md:col-span-2">Add Rule</button>
-          </form>
-          <table><thead><tr><th>Min</th><th>Max</th><th>Level1</th><th>Level2</th><th>Active</th></tr></thead><tbody>{rules.map((r) => <tr key={r.id}><td>{String(r.minAmount)}</td><td>{r.maxAmount ? String(r.maxAmount) : "No limit"}</td><td>{String(r.requiresLevel1)}</td><td>{String(r.requiresLevel2)}</td><td>{String(r.isActive)}</td></tr>)}</tbody></table>
-        </section>
       </div>
-      {superAdmin && (
-        <section className="card mt-4">
-          <h2 className="mb-3 font-semibold">Email Test</h2>
-          <EmailTestPanel defaultTo={user.email || ""} />
-        </section>
-      )}
+      <section className="card mt-4">
+        <h2 className="mb-3 font-semibold">Email Test</h2>
+        <EmailTestPanel defaultTo={user.email || ""} />
+      </section>
+      <section className="card mt-4">
+        <h2 className="mb-3 font-semibold">Clean Test Data</h2>
+        <ResetDatabasePanel />
+      </section>
       <section className="card mt-4">
         <h2 className="mb-3 font-semibold">Claim Type Master</h2>
         <form action={saveClaimType} className="mb-4 grid gap-2 md:grid-cols-6">
