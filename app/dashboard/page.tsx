@@ -6,6 +6,20 @@ import { requireUser } from "@/lib/auth";
 
 export default async function Dashboard() {
   const user = await requireUser();
+  const employee = await prisma.user.findUniqueOrThrow({
+    where: { employeeId: user.employeeId },
+    select: {
+      employeeId: true,
+      name: true,
+      location: true,
+      plant: true,
+      costCenter: true,
+      accountsName: true,
+      rmName: true,
+      level1Name: true,
+      level2Name: true
+    }
+  });
   const claims = await prisma.claimHeader.findMany({
     where: { employeeId: user.employeeId },
     include: { lines: { include: { claimType: true, attachments: true }, orderBy: { createdAt: "asc" } } },
@@ -43,6 +57,20 @@ export default async function Dashboard() {
 
   return (
     <Shell title="Employee Dashboard">
+      <section className="card mb-4">
+        <h2 className="mb-3 font-semibold">Employee Information</h2>
+        <div className="grid gap-3 text-sm md:grid-cols-4">
+          <Info label="Emp Code" value={employee.employeeId} />
+          <Info label="Emp Name" value={employee.name} />
+          <Info label="City Location" value={employee.location} />
+          <Info label="Plant" value={employee.plant} />
+          <Info label="Cost Centre" value={employee.costCenter} />
+          <Info label="Accounts" value={employee.accountsName} />
+          <Info label="RM" value={employee.rmName} />
+          <Info label="Level1 Approver" value={employee.level1Name} />
+          <Info label="Level2 Approver" value={employee.level2Name} />
+        </div>
+      </section>
       <div className="mb-4 flex justify-end"><Link className="btn" href="/claims/new">New Claim</Link></div>
       <div className="mb-5 grid gap-3 md:grid-cols-6">
         {Object.entries(counts).map(([label, value]) => (
@@ -88,5 +116,14 @@ export default async function Dashboard() {
         </table>
       </div>
     </Shell>
+  );
+}
+
+function Info({ label, value }: { label: string; value?: string | null }) {
+  return (
+    <div className="rounded border border-line bg-panel p-3">
+      <div className="text-xs uppercase text-muted">{label}</div>
+      <div className="mt-1 font-semibold">{value || "-"}</div>
+    </div>
   );
 }

@@ -117,6 +117,16 @@ async function main() {
   }
 
   const claimTypes = employeeExpenseTypes;
+  await prisma.claimType.deleteMany({
+    where: {
+      name: { notIn: claimTypes },
+      lines: { none: {} }
+    }
+  });
+  await prisma.claimType.updateMany({
+    where: { name: { notIn: claimTypes } },
+    data: { isActive: false }
+  });
   for (const name of claimTypes) {
     await prisma.claimType.upsert({
       where: { name },

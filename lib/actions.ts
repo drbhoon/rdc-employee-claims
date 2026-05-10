@@ -270,7 +270,11 @@ export async function approverAction(formData: FormData) {
   const employeeMail = await prisma.user.findUnique({ where: { employeeId: claim.employeeId } });
   const next = pendingWith ? await prisma.user.findFirst({ where: { OR: [{ employeeId: pendingWith }, { email: pendingWith }] } }) : null;
   if (pendingWith) await notifyClaim(updated, next?.email || pendingWith, isRmRecommendation ? "Level 1 approval required" : "Level 2 approval required");
-  if (newStatus === "FINAL_APPROVED") await notifyClaim(updated, [employeeMail?.email, employee.level1Email, employee.level2Email, employee.accountsEmail].filter(Boolean) as string[], "Claim final approved");
+  if (newStatus === "FINAL_APPROVED") {
+    const finalRecipients = [employeeMail?.email, employee.accountsEmail, employee.level1Email];
+    if (claim.approvalLevelRequired >= 2 || Number(claim.totalAmount) > 25000) finalRecipients.push(employee.level2Email);
+    await notifyClaim(updated, [...new Set(finalRecipients.filter(Boolean))] as string[], "Claim final approved");
+  }
   if (String(newStatus).startsWith("REJECTED")) await notifyClaim(updated, [employeeMail?.email, employee.accountsEmail].filter(Boolean) as string[], "Claim rejected");
   revalidatePath("/approver");
   revalidatePath("/accounts");
