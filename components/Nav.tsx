@@ -41,16 +41,10 @@ function NavLink({ href, icon, children }: { href: string; icon: React.ReactNode
 
 function RdcLogo() {
   return (
-    <span className="flex items-center gap-2">
-      <svg className="h-14 w-24" viewBox="0 0 150 88" fill="none" aria-label="RDC logo">
-        <rect x="12" y="34" width="55" height="32" rx="4" stroke="#111827" strokeWidth="4" />
-        <path d="M67 42h16l16 14v10H67V42Z" stroke="#111827" strokeWidth="4" fill="#F8FAFC" />
-        <circle cx="33" cy="72" r="8" fill="#111827" />
-        <circle cx="82" cy="72" r="8" fill="#111827" />
-        <path d="M91 24c19-8 37-6 46 7 8 13 2 30-15 40-17 9-39 7-49-5-10-13-2-33 18-42Z" fill="#0A8F2C" stroke="#111827" strokeWidth="3" />
-        <text x="93" y="55" fill="white" fontSize="25" fontWeight="800" transform="rotate(-13 93 55)">RDC</text>
-      </svg>
-      <span className="hidden text-[10px] font-extrabold leading-tight text-ink lg:block">We Promise We Deliver</span>
-    </span>
+    <img
+      src="/rdc-logo.jpeg"
+      alt="RDC - We Promise We Deliver"
+      className="h-16 w-auto object-contain"
+    />
   );
 }
