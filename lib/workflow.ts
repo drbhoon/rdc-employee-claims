@@ -55,18 +55,108 @@ export async function addHistory(args: {
 }
 
 export async function notifyClaim(claim: ClaimHeader, to: string | string[] | undefined | null, actionRequired: string) {
-  await sendMail({
-    to,
-    subject: `${claim.claimId} - ${claim.currentStatus}`,
-    html: claimEmailHtml({
-      claimId: claim.claimId,
-      employeeName: claim.employeeName,
-      totalAmount: String(claim.totalAmount),
-      currentStatus: claim.currentStatus,
-      actionRequired,
-      claimPath: `/claims/${claim.id}`
-    })
+  const recipients = [...new Set((Array.isArray(to) ? to : [to]).filter(Boolean).map((item) => String(item).toLowerCase()))];
+  if (!recipients.length) return;
+
+  const employee = await prisma.user.findUnique({ where: { employeeId: claim.employeeId } });
+  const users = await prisma.user.findMany({
+    where: { email: { in: recipients } },
+    select: { email: true, name: true }
   });
+  const userNameByEmail = new Map(users.map((item) => [item.email?.toLowerCase(), item.name]));
+
+  for (const recipient of recipients) {
+    const context = notificationContext(recipient, actionRequired, employee, userNameByEmail.get(recipient));
+    await sendMail({
+      to: recipient,
+      subject: `${claim.claimId} - ${context.subject}`,
+      html: claimEmailHtml({
+        claimId: claim.claimId,
+        employeeName: claim.employeeName,
+        recipientName: context.recipientName,
+        totalAmount: String(claim.totalAmount),
+        currentStatus: claim.currentStatus,
+        actionText: context.actionText,
+        roleText: context.roleText,
+        finalNotice: context.finalNotice,
+        claimPath: `/claims/${claim.id}`
+      })
+    });
+  }
+}
+
+function notificationContext(
+  recipient: string,
+  actionRequired: string,
+  employee: Awaited<ReturnType<typeof prisma.user.findUnique>>,
+  userName?: string
+) {
+  const text = actionRequired.toLowerCase();
+  if (text.includes("final approved") || text.includes("rejected")) {
+    return {
+      recipientName: displayName(userName || mappedName(recipient, employee) || recipient),
+      actionText: "Information",
+      roleText: "Recipient",
+      subject: actionRequired,
+      finalNotice: true
+    };
+  }
+  if (recipient === employee?.accountsEmail?.toLowerCase() || text.includes("accounts")) {
+    return {
+      recipientName: displayName(employee?.accountsName || userName || recipient),
+      actionText: "Verification",
+      roleText: "Accounts Verifier",
+      subject: "Verification Required",
+      finalNotice: false
+    };
+  }
+  if (recipient === employee?.rmEmail?.toLowerCase() || text.includes("rm")) {
+    return {
+      recipientName: displayName(employee?.rmName || userName || recipient),
+      actionText: "Approval",
+      roleText: "RM Approver",
+      subject: "RM Approval Required",
+      finalNotice: false
+    };
+  }
+  if (recipient === employee?.level2Email?.toLowerCase() || text.includes("level 2")) {
+    return {
+      recipientName: displayName(employee?.level2Name || userName || recipient),
+      actionText: "Approval",
+      roleText: "LEVEL2 Approver",
+      subject: "Level2 Approval Required",
+      finalNotice: false
+    };
+  }
+  if (recipient === employee?.level1Email?.toLowerCase() || text.includes("level 1")) {
+    return {
+      recipientName: displayName(employee?.level1Name || userName || recipient),
+      actionText: "Approval",
+      roleText: "LEVEL1 Approver",
+      subject: "Level1 Approval Required",
+      finalNotice: false
+    };
+  }
+  return {
+    recipientName: displayName(userName || employee?.name || recipient),
+    actionText: "Review",
+    roleText: "Employee",
+    subject: actionRequired,
+    finalNotice: false
+  };
+}
+
+function mappedName(recipient: string, employee: Awaited<ReturnType<typeof prisma.user.findUnique>>) {
+  if (recipient === employee?.accountsEmail?.toLowerCase()) return employee.accountsName;
+  if (recipient === employee?.rmEmail?.toLowerCase()) return employee.rmName;
+  if (recipient === employee?.level1Email?.toLowerCase()) return employee.level1Name;
+  if (recipient === employee?.level2Email?.toLowerCase()) return employee.level2Name;
+  if (recipient === employee?.email?.toLowerCase()) return employee.name;
+  return null;
+}
+
+function displayName(value: string) {
+  return value.includes("@") ? value.split("@")[0] : value;
 }
 
 export function statusLabel(status: string) {

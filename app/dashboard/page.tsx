@@ -3,6 +3,7 @@ import { Shell } from "@/components/Shell";
 import { StatusBadge } from "@/components/StatusBadge";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
+import { ApproverIcon, DocIcon, IdIcon, PeopleIcon, PieIcon, PinIcon, PlantIcon, PlusCircleIcon, UserIcon } from "@/components/UiIcons";
 
 export default async function Dashboard() {
   const user = await requireUser();
@@ -56,22 +57,33 @@ export default async function Dashboard() {
   }
 
   return (
-    <Shell title="Employee Dashboard">
-      <section className="card mb-4">
-        <h2 className="mb-3 font-semibold">Employee Information</h2>
-        <div className="grid gap-3 text-sm md:grid-cols-4">
-          <Info label="Emp Code" value={employee.employeeId} />
-          <Info label="Emp Name" value={employee.name} />
-          <Info label="City Location" value={employee.location} />
-          <Info label="Plant" value={employee.plant} />
-          <Info label="Cost Centre" value={employee.costCenter} />
-          <Info label="Accounts" value={employee.accountsName} />
-          <Info label="RM" value={employee.rmName} />
-          <Info label="Level1 Approver" value={employee.level1Name} />
-          <Info label="Level2 Approver" value={employee.level2Name} />
+    <Shell title="">
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-5">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-rdcGreen text-white shadow-md">
+            <UserIcon className="h-9 w-9" />
+          </div>
+          <div className="flex flex-wrap items-center gap-4">
+            <h1 className="text-3xl font-extrabold tracking-tight text-ink">Employee Dashboard</h1>
+            <span className="hidden h-10 w-px bg-slate-300 md:inline-block" />
+            <span className="text-xl font-semibold text-slate-700">{employee.name}</span>
+          </div>
+        </div>
+        <Link className="btn gap-2 rounded-md px-5 py-3 text-base shadow-md" href="/claims/new"><PlusCircleIcon /> New Claim</Link>
+      </div>
+      <section className="card mb-6 p-6">
+        <h2 className="mb-5 flex items-center gap-3 text-lg font-extrabold text-rdcGreen"><IdIcon className="h-7 w-7" /> Employee Information</h2>
+        <div className="grid gap-5 md:grid-cols-4">
+          <Info icon={<IdIcon />} label="Emp Code" value={employee.employeeId} />
+          <Info icon={<PinIcon />} label="City Location" value={employee.location} />
+          <Info icon={<PlantIcon />} label="Plant" value={employee.plant} />
+          <Info icon={<PieIcon />} label="Cost Centre" value={employee.costCenter} />
+          <Info icon={<DocIcon className="h-6 w-6" />} label="Accounts" value={employee.accountsName} />
+          <Info icon={<PeopleIcon />} label="RM" value={employee.rmName} />
+          <Info icon={<ApproverIcon />} label="Level1 Approver" value={employee.level1Name} />
+          <Info icon={<ApproverIcon />} label="Level2 Approver" value={employee.level2Name} />
         </div>
       </section>
-      <div className="mb-4 flex justify-end"><Link className="btn" href="/claims/new">New Claim</Link></div>
       <div className="mb-5 grid gap-3 md:grid-cols-6">
         {Object.entries(counts).map(([label, value]) => (
           <div className="card" key={label}>
@@ -119,11 +131,14 @@ export default async function Dashboard() {
   );
 }
 
-function Info({ label, value }: { label: string; value?: string | null }) {
+function Info({ icon, label, value }: { icon: React.ReactNode; label: string; value?: string | null }) {
   return (
-    <div className="rounded border border-line bg-panel p-3">
-      <div className="text-xs uppercase text-muted">{label}</div>
-      <div className="mt-1 font-semibold">{value || "-"}</div>
+    <div className="flex min-h-24 items-center gap-5 rounded-md border border-line bg-white p-5 shadow-sm">
+      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-green-50 text-rdcGreen">{icon}</div>
+      <div>
+        <div className="text-xs font-semibold uppercase text-muted">{label}</div>
+        <div className="mt-2 text-base font-extrabold text-ink">{value || "-"}</div>
+      </div>
     </div>
   );
 }

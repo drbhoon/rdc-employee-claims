@@ -4,7 +4,9 @@
 
 body {
   color: #172033;
-  background: #eef2f7;
+  background:
+    radial-gradient(circle at 15% 30%, rgba(0, 138, 46, 0.08), transparent 28%),
+    linear-gradient(180deg, #f7fbf8 0%, #eef5f0 100%);
 }
 
 input, select, textarea {
@@ -28,7 +30,7 @@ td {
 }
 
 .btn {
-  @apply inline-flex items-center justify-center rounded border border-accent bg-accent px-3 py-2 text-sm font-semibold text-white hover:bg-[#0f597a];
+  @apply inline-flex items-center justify-center rounded border border-accent bg-accent px-3 py-2 text-sm font-semibold text-white hover:bg-[#067323];
 }
 
 .btn-secondary {

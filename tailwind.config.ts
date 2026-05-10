@@ -9,7 +9,8 @@ const config: Config = {
         muted: "#667085",
         line: "#d9dee8",
         panel: "#f7f9fc",
-        accent: "#146c94"
+        accent: "#0a8f2c",
+        rdcGreen: "#008a2e"
       }
     }
   },

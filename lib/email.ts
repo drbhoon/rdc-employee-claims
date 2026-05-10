@@ -25,18 +25,22 @@ export async function sendMail({ to, subject, html }: MailArgs) {
 export function claimEmailHtml(args: {
   claimId: string;
   employeeName: string;
+  recipientName: string;
   totalAmount: string | number;
   currentStatus: string;
-  actionRequired: string;
+  actionText: string;
+  roleText: string;
   claimPath: string;
+  finalNotice?: boolean;
 }) {
   const appUrl = process.env.APP_URL || "http://localhost:3000";
+  const claimLine = args.finalNotice
+    ? `${args.employeeName} Claim ID No. ${args.claimId} is ${args.currentStatus.replaceAll("_", " ")}.`
+    : `${args.employeeName} Claim ID No. ${args.claimId}, Needs your ${args.actionText} as ${args.roleText}.`;
   return `
-    <p><strong>Claim ID:</strong> ${args.claimId}</p>
-    <p><strong>Employee:</strong> ${args.employeeName}</p>
+    <p>Dear ${args.recipientName},</p>
+    <p>${claimLine}</p>
     <p><strong>Total Amount:</strong> INR ${args.totalAmount}</p>
-    <p><strong>Status:</strong> ${args.currentStatus}</p>
-    <p><strong>Action Required:</strong> ${args.actionRequired}</p>
-    <p><a href="${appUrl}${args.claimPath}">Open claim</a></p>
+    <p><a href="${appUrl}${args.claimPath}">Open Claim</a></p>
   `;
 }
