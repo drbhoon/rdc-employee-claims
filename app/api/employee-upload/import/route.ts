@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
-import { getSession, isSuperAdmin } from "@/lib/auth";
+import { Role } from "@prisma/client";
+import { getSession, isSuperAdmin, superadminEmail } from "@/lib/auth";
 import { clean, cleanEmail, normalizeBool, parseEmployeeUpload, validateRows } from "@/lib/employeeUpload";
 import { prisma } from "@/lib/prisma";
 
@@ -24,13 +25,16 @@ export async function POST(request: Request) {
       continue;
     }
 
+    const loginId = cleanEmail(row.login_id);
+    await releaseFallbackSuperadmin(loginId, employeeId);
     const password = clean(row.password) || defaultPassword;
     const passwordHash = await bcrypt.hash(password, 12);
+    const role: Role = loginId === superadminEmail() ? "ADMIN" : "EMPLOYEE";
     const updateData = {
       name: clean(row.employee_name),
-      email: cleanEmail(row.login_id),
+      email: loginId,
       mobile: clean(row.mobile) || null,
-      role: "EMPLOYEE" as const,
+      role,
       department: clean(row.department) || null,
       location: clean(row.location) || null,
       plant: clean(row.plant) || null,
@@ -51,10 +55,10 @@ export async function POST(request: Request) {
       create: {
         employeeId,
         name: clean(row.employee_name),
-        email: cleanEmail(row.login_id),
+        email: loginId,
         mobile: clean(row.mobile) || null,
         passwordHash,
-        role: "EMPLOYEE",
+        role,
         department: clean(row.department) || null,
         location: clean(row.location) || null,
         plant: clean(row.plant) || null,
@@ -80,6 +84,30 @@ export async function POST(request: Request) {
   }
   await prisma.employeeUploadBatch.create({ data: { fileName: file.name, uploadedBy: user.employeeId, totalRows: rows.length, validRows: valid.length, errorRows: 0, importedRows: imported, status: "IMPORTED" } });
   return NextResponse.json({ importedRows: imported });
+}
+
+async function releaseFallbackSuperadmin(email: string, employeeId: string) {
+  if (email !== superadminEmail() || employeeId === "SUPERADMIN") return;
+  const owner = await prisma.user.findUnique({ where: { email } });
+  if (!owner || owner.employeeId === employeeId || owner.employeeId !== "SUPERADMIN") return;
+
+  const targetEmployee = await prisma.user.findUnique({ where: { employeeId } });
+  const fallbackClaimCount = await prisma.claimHeader.count({ where: { employeeId: owner.employeeId } });
+  if (!targetEmployee && fallbackClaimCount === 0) {
+    await prisma.user.update({
+      where: { id: owner.id },
+      data: { employeeId }
+    });
+    return;
+  }
+
+  await prisma.user.update({
+    where: { id: owner.id },
+    data: {
+      email: null,
+      isActive: false
+    }
+  });
 }
 
 async function ensureWorkflowLogin(name: string, email: string, role: "ACCOUNTS" | "APPROVER", defaultPassword: string) {

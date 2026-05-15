@@ -9,6 +9,7 @@ export type SessionUser = Pick<User, "employeeId" | "name" | "role" | "email" | 
 
 const COOKIE = "rdc_session";
 const DEFAULT_PUBLIC_APP_URL = "https://rdc-employee-claims-production.up.railway.app";
+const DEFAULT_SUPERADMIN_EMAIL = "ksbhoon@rdc.in";
 
 function secret() {
   return process.env.NEXTAUTH_SECRET || "dev-secret-change-me";
@@ -72,8 +73,12 @@ export function canManageAll(role: Role) {
   return role === "ADMIN" || role === "ACCOUNTS";
 }
 
-export function isSuperAdmin(user: Pick<SessionUser, "employeeId" | "role">) {
-  return user.role === "ADMIN" && user.employeeId === "SUPERADMIN";
+export function superadminEmail() {
+  return (process.env.SUPERADMIN_EMAIL || DEFAULT_SUPERADMIN_EMAIL).trim().toLowerCase();
+}
+
+export function isSuperAdmin(user: Pick<SessionUser, "email" | "role">) {
+  return user.role === "ADMIN" && user.email?.toLowerCase() === superadminEmail();
 }
 
 export async function requireSuperAdmin() {

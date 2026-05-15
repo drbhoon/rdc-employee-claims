@@ -4,6 +4,8 @@ import { Shell } from "@/components/Shell";
 import { EmployeeUploadPanel } from "@/components/EmployeeUploadPanel";
 import { EmailTestPanel } from "@/components/EmailTestPanel";
 import { ResetDatabasePanel } from "@/components/ResetDatabasePanel";
+import { SuperadminPasswordResetPanel } from "@/components/SuperadminPasswordResetPanel";
+import { deleteClaimType, saveClaimType } from "@/lib/actions";
 
 export default async function AdminPage({ searchParams }: { searchParams: { error?: string } }) {
   const user = await requireSuperAdmin();
@@ -26,12 +28,24 @@ export default async function AdminPage({ searchParams }: { searchParams: { erro
         <EmailTestPanel defaultTo={user.email || ""} />
       </section>
       <section className="card mt-4">
+        <h2 className="mb-3 font-semibold">Superadmin Password Reset</h2>
+        <SuperadminPasswordResetPanel email={user.email || ""} />
+      </section>
+      <section className="card mt-4">
         <h2 className="mb-3 font-semibold">Clean Test Data</h2>
         <ResetDatabasePanel />
       </section>
       <section className="card mt-4">
         <h2 className="mb-3 font-semibold">Claim Type Master</h2>
-        <table><thead><tr><th>Name</th><th>Attachment</th><th>Max Line</th><th>Monthly</th><th>Cost Head</th><th>GL</th><th>Active</th></tr></thead><tbody>{claimTypes.map((t) => <tr key={t.id}><td>{t.name}</td><td>{String(t.attachmentRequired)}</td><td>{t.maxAmountPerLine ? String(t.maxAmountPerLine) : "-"}</td><td>{t.monthlyLimit ? String(t.monthlyLimit) : "-"}</td><td>{t.costHead || "-"}</td><td>{t.glCode || "-"}</td><td>{String(t.isActive)}</td></tr>)}</tbody></table>
+        <form action={saveClaimType} className="mb-4 grid gap-3 md:grid-cols-6">
+          <div className="md:col-span-2"><label>Name</label><input name="name" required /></div>
+          <div><label>GL Code</label><input name="glCode" required /></div>
+          <div className="md:col-span-2"><label>Cost Head</label><input name="costHead" /></div>
+          <label className="flex items-center gap-2 pt-7"><input name="attachmentRequired" type="checkbox" /> Attachment</label>
+          <label className="flex items-center gap-2"><input name="isActive" type="checkbox" defaultChecked /> Active</label>
+          <button className="btn md:col-span-5" type="submit">Add GL Code</button>
+        </form>
+        <table><thead><tr><th>Name</th><th>Attachment</th><th>Max Line</th><th>Monthly</th><th>Cost Head</th><th>GL</th><th>Active</th><th>Action</th></tr></thead><tbody>{claimTypes.map((t) => <tr key={t.id}><td>{t.name}</td><td>{String(t.attachmentRequired)}</td><td>{t.maxAmountPerLine ? String(t.maxAmountPerLine) : "-"}</td><td>{t.monthlyLimit ? String(t.monthlyLimit) : "-"}</td><td>{t.costHead || "-"}</td><td>{t.glCode || "-"}</td><td>{String(t.isActive)}</td><td><form action={deleteClaimType}><input type="hidden" name="id" value={t.id} /><button className="btn-secondary" type="submit">Delete</button></form></td></tr>)}</tbody></table>
       </section>
       <section className="card mt-4">
         <h2 className="mb-3 font-semibold">Employee Master</h2>

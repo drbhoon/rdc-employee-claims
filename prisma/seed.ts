@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { employeeExpenseTypes, expenseGlCodes } from "../lib/expenseTypes";
 
 const prisma = new PrismaClient();
+const SUPERADMIN_EMAIL = (process.env.SUPERADMIN_EMAIL || "ksbhoon@rdc.in").trim().toLowerCase();
 
 async function upsertUser(data: {
   employeeId: string;
@@ -61,13 +62,7 @@ async function upsertUser(data: {
 }
 
 async function main() {
-  await upsertUser({
-    employeeId: "SUPERADMIN",
-    name: process.env.SUPERADMIN_NAME || "Superadmin",
-    password: process.env.SUPERADMIN_PASSWORD || "Superadmin@123",
-    role: "ADMIN",
-    email: process.env.SUPERADMIN_EMAIL || "superadmin@rdc.in"
-  });
+  await ensureSuperadmin();
 
   if (process.env.SEED_DEMO_USERS === "true") {
     await upsertUser({ employeeId: "ADMIN001", name: "System Admin", password: "Admin@123", role: "ADMIN", email: "admin@rdc.test" });
@@ -117,16 +112,7 @@ async function main() {
   }
 
   const claimTypes = employeeExpenseTypes;
-  await prisma.claimType.deleteMany({
-    where: {
-      name: { notIn: claimTypes },
-      lines: { none: {} }
-    }
-  });
-  await prisma.claimType.updateMany({
-    where: { name: { notIn: claimTypes } },
-    data: { isActive: false }
-  });
+  await migrateClaimTypes();
   for (const name of claimTypes) {
     await prisma.claimType.upsert({
       where: { name },
@@ -147,6 +133,120 @@ async function main() {
       { minAmount: 25000.01, maxAmount: null, requiresLevel1: true, requiresLevel2: true, requiresLevel3: false }
     ]
   });
+}
+
+async function ensureSuperadmin() {
+  const existingEmailOwner = await prisma.user.findUnique({ where: { email: SUPERADMIN_EMAIL } });
+  if (existingEmailOwner) {
+    await prisma.user.update({
+      where: { id: existingEmailOwner.id },
+      data: {
+        role: "ADMIN",
+        isActive: true
+      }
+    });
+    await prisma.user.updateMany({
+      where: {
+        employeeId: "SUPERADMIN",
+        id: { not: existingEmailOwner.id }
+      },
+      data: {
+        email: null,
+        isActive: false
+      }
+    });
+    return;
+  }
+
+  const existingSuperadmin = await prisma.user.findUnique({ where: { employeeId: "SUPERADMIN" } });
+  if (existingSuperadmin) {
+    await prisma.user.update({
+      where: { employeeId: "SUPERADMIN" },
+      data: {
+        name: process.env.SUPERADMIN_NAME || "Superadmin",
+        email: SUPERADMIN_EMAIL,
+        role: "ADMIN",
+        isActive: true,
+        mustChangePassword: false
+      }
+    });
+    return;
+  }
+
+  await upsertUser({
+    employeeId: "SUPERADMIN",
+    name: process.env.SUPERADMIN_NAME || "Superadmin",
+    password: process.env.SUPERADMIN_PASSWORD || "Superadmin@123",
+    role: "ADMIN",
+    email: SUPERADMIN_EMAIL
+  });
+}
+
+async function migrateClaimTypes() {
+  const replacementName = "Sales Promotion Expenses & Customer Relations";
+  const typoSales = await prisma.claimType.findUnique({ where: { name: "Sales Promotion Expenses & Custome Relations" } });
+  const oldSales = await prisma.claimType.findUnique({ where: { name: "Sales Promotion Expenses" } });
+  let newSales = await prisma.claimType.findUnique({ where: { name: replacementName } });
+  if (typoSales && !newSales) {
+    await prisma.claimType.update({
+      where: { id: typoSales.id },
+      data: {
+        name: replacementName,
+        costHead: replacementName,
+        glCode: expenseGlCodes[replacementName],
+        isActive: true
+      }
+    });
+    newSales = await prisma.claimType.findUnique({ where: { name: replacementName } });
+  } else if (typoSales && newSales) {
+    await deleteOrDeactivateClaimType(typoSales.id);
+  }
+  if (oldSales && !newSales) {
+    await prisma.claimType.update({
+      where: { id: oldSales.id },
+      data: {
+        name: replacementName,
+        costHead: replacementName,
+        glCode: expenseGlCodes[replacementName],
+        isActive: true
+      }
+    });
+  } else if (oldSales && newSales) {
+    await deleteOrDeactivateClaimType(oldSales.id);
+  }
+
+  const obsoleteTypes = [
+    "Customer Relation (Lunch & Dinner with Customer)",
+    "Customer Relations (Lunch & Dinner with customer)",
+    "Food / Meal Expense",
+    "Fuel Reimbursement",
+    "Hotel Stay",
+    "Local Conveyance",
+    "Local Conveyance (Local Visit as per RDC Track)",
+    "Medical Reimbursement",
+    "Miscellaneous",
+    "Mobile Reimbursement",
+    "Office Maintanance (Sweeper salary, Other)",
+    "Repair and Maintainance (Less than 5K)",
+    "Staff Welfare",
+    "Toll / Parking",
+    "Travel Expense",
+    "Travelling Expenses Outstation visits (e.g., Hotel stay, Train fare, Air fare, bus fare)"
+  ];
+
+  for (const name of obsoleteTypes) {
+    const type = await prisma.claimType.findUnique({ where: { name } });
+    if (type) await deleteOrDeactivateClaimType(type.id);
+  }
+}
+
+async function deleteOrDeactivateClaimType(id: string) {
+  const lineCount = await prisma.claimLine.count({ where: { claimTypeId: id } });
+  if (lineCount) {
+    await prisma.claimType.update({ where: { id }, data: { isActive: false } });
+    return;
+  }
+  await prisma.claimType.delete({ where: { id } });
 }
 
 main()

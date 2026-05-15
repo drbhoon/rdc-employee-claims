@@ -7,7 +7,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ClaimStatus, Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
+import { requireSuperAdmin, requireUser } from "@/lib/auth";
 import { allowedFileTypes } from "@/lib/constants";
 import { addHistory, findApprovalRule, nextClaimId, notifyClaim, requiredApprovalLevel, validateApproverMapping } from "@/lib/workflow";
 
@@ -283,7 +283,7 @@ export async function approverAction(formData: FormData) {
 }
 
 export async function saveClaimType(formData: FormData) {
-  await requireUser(["ADMIN"]);
+  await requireSuperAdmin();
   const id = String(formData.get("id") || "");
   const data = {
     name: String(formData.get("name")),
@@ -296,6 +296,19 @@ export async function saveClaimType(formData: FormData) {
   };
   if (id) await prisma.claimType.update({ where: { id }, data });
   else await prisma.claimType.create({ data });
+  revalidatePath("/admin");
+}
+
+export async function deleteClaimType(formData: FormData) {
+  await requireSuperAdmin();
+  const id = String(formData.get("id") || "");
+  if (!id) return;
+  const lineCount = await prisma.claimLine.count({ where: { claimTypeId: id } });
+  if (lineCount) {
+    await prisma.claimType.update({ where: { id }, data: { isActive: false } });
+  } else {
+    await prisma.claimType.delete({ where: { id } });
+  }
   revalidatePath("/admin");
 }
 

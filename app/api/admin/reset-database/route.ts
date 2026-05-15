@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     const uploadErrors = await tx.employeeUploadError.deleteMany({});
     const uploadBatches = await tx.employeeUploadBatch.deleteMany({});
     const resetTokens = await tx.passwordResetToken.deleteMany({});
-    const users = await tx.user.deleteMany({ where: { employeeId: { not: "SUPERADMIN" } } });
+    const users = await tx.user.deleteMany({ where: { employeeId: { not: user.employeeId } } });
     return {
       attachments: attachments.count,
       lines: lines.count,

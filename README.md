@@ -73,13 +73,13 @@ Use `prisma:dev` locally to create and apply migrations. Use `prisma:migrate` on
 
 ## Superadmin Login
 
-Railway startup always creates or updates one built-in superadmin user:
+Superadmin authority is attached to the configured superadmin email ID. This allows the same person to remain an employee and also manage the system.
 
 | Role | Employee ID | Email ID | Password Source |
 | --- | --- | --- | --- |
-| Superadmin | SUPERADMIN | `SUPERADMIN_EMAIL` | `SUPERADMIN_PASSWORD` |
+| Superadmin | Existing employee ID, or fallback `SUPERADMIN` | `SUPERADMIN_EMAIL` (default `ksbhoon@rdc.in`) | Existing password, reset email, or fallback `SUPERADMIN_PASSWORD` |
 
-Use Railway variables to set or reset this password, then redeploy/restart the service. Only this `SUPERADMIN` login can download, validate, import, add, update, or delete employee master records. Demo users are no longer seeded unless `SEED_DEMO_USERS=true`.
+If an employee master row uses the configured `SUPERADMIN_EMAIL`, the app keeps that employee record and gives it superadmin rights. If the database is empty, startup creates a fallback `SUPERADMIN` login with that email. The Admin dashboard has a button to send the superadmin password reset link by email. Only this login can download, validate, import, add, update, or delete employee master records. Demo users are no longer seeded unless `SEED_DEMO_USERS=true`.
 
 ## Railway Deployment
 
