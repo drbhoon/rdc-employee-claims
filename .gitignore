@@ -1,5 +1,6 @@
 .env
 .env.local
+.env.docker
 node_modules
 .next
 tsconfig.tsbuildinfo
@@ -7,3 +8,4 @@ uploads/*
 !uploads/.gitkeep
 dev-server.log
 dev-server.err.log
+.tmp
