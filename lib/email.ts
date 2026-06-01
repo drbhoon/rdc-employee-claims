@@ -17,7 +17,8 @@ export async function sendMail({ to, subject, html }: MailArgs) {
     host: SMTP_HOST,
     port: Number(SMTP_PORT),
     secure: Number(SMTP_PORT) === 465,
-    auth: SMTP_USER && SMTP_PASS ? { user: SMTP_USER, pass: SMTP_PASS } : undefined
+    auth: SMTP_USER && SMTP_PASS ? { user: SMTP_USER, pass: SMTP_PASS } : undefined,
+    tls: { rejectUnauthorized: false }
   });
   return transporter.sendMail({ from: SMTP_FROM, to, subject, html });
 }
