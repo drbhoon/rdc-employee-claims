@@ -6,20 +6,42 @@ type MailArgs = {
   html: string;
 };
 
+type SentMailResult = {
+  accepted?: unknown[];
+  rejected?: unknown[];
+  response?: string;
+};
+
+type MailTransporter = {
+  sendMail(args: { from: string; to: string | string[]; subject: string; html: string }): Promise<SentMailResult>;
+};
+
+let transporter: MailTransporter | null = null;
+
 export async function sendMail({ to, subject, html }: MailArgs) {
   if (!to) return;
-  const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM } = process.env;
+  const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM, SMTP_CONNECTION_TIMEOUT_MS, SMTP_GREETING_TIMEOUT_MS, SMTP_SOCKET_TIMEOUT_MS, SMTP_MAX_CONNECTIONS } = process.env;
   if (!SMTP_HOST || !SMTP_PORT || !SMTP_FROM) {
     console.log("Email skipped:", subject, to);
     return;
   }
-  const transporter = nodemailer.createTransport({
-    host: SMTP_HOST,
-    port: Number(SMTP_PORT),
-    secure: Number(SMTP_PORT) === 465,
-    auth: SMTP_USER && SMTP_PASS ? { user: SMTP_USER, pass: SMTP_PASS } : undefined
-  });
-  return transporter.sendMail({ from: SMTP_FROM, to, subject, html });
+  if (!transporter) {
+    transporter = nodemailer.createTransport({
+      host: SMTP_HOST,
+      port: Number(SMTP_PORT),
+      secure: Number(SMTP_PORT) === 465,
+      pool: true,
+      maxConnections: Number(SMTP_MAX_CONNECTIONS || 3),
+      maxMessages: 100,
+      connectionTimeout: Number(SMTP_CONNECTION_TIMEOUT_MS || 10000),
+      greetingTimeout: Number(SMTP_GREETING_TIMEOUT_MS || 10000),
+      socketTimeout: Number(SMTP_SOCKET_TIMEOUT_MS || 15000),
+      auth: SMTP_USER && SMTP_PASS ? { user: SMTP_USER, pass: SMTP_PASS } : undefined
+    });
+  }
+  const activeTransporter = transporter;
+  if (!activeTransporter) throw new Error("SMTP transporter could not be initialized.");
+  return activeTransporter.sendMail({ from: SMTP_FROM, to, subject, html });
 }
 
 export function claimEmailHtml(args: {
