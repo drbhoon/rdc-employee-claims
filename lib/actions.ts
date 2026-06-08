@@ -9,7 +9,7 @@ import { ClaimStatus, Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireSuperAdmin, requireUser } from "@/lib/auth";
 import { allowedFileTypes } from "@/lib/constants";
-import { addHistory, findApprovalRule, nextClaimId, notifyClaim, requiredApprovalLevel, validateApproverMapping } from "@/lib/workflow";
+import { addHistory, findApprovalRule, nextClaimId, notifyClaimInBackground, requiredApprovalLevel, validateApproverMapping } from "@/lib/workflow";
 
 function money(value: FormDataEntryValue | null) {
   return Number(value || 0);
@@ -163,7 +163,7 @@ export async function createOrUpdateClaim(formData: FormData) {
     return header;
   });
 
-  if (action === "submit") await notifyClaim(claim, employee.accountsEmail, "Accounts audit required");
+  if (action === "submit") notifyClaimInBackground(claim, employee.accountsEmail, "Accounts audit required");
   revalidatePath("/dashboard");
   redirect(`/claims/${claim.id}`);
 }
@@ -217,8 +217,8 @@ export async function accountsAction(formData: FormData) {
   await addHistory({ claimHeaderId: id, actor: user, action: `ACCOUNTS_${action.toUpperCase()}`, comments, previousStatus: claim.currentStatus, newStatus });
   const employee = await prisma.user.findUnique({ where: { employeeId: claim.employeeId } });
   const nextApprover = pendingWith ? await prisma.user.findFirst({ where: { OR: [{ employeeId: pendingWith }, { email: pendingWith }] } }) : null;
-  if (["RETURNED_BY_ACCOUNTS", "REJECTED_BY_ACCOUNTS"].includes(newStatus)) await notifyClaim(updated, employee?.email, "Review Accounts comments");
-  if (newStatus === "PENDING_LEVEL_1_APPROVAL") await notifyClaim(updated, nextApprover?.email || pendingWith, pendingWith === employee?.rmEmail ? "RM recommendation required" : "Level 1 approval required");
+  if (["RETURNED_BY_ACCOUNTS", "REJECTED_BY_ACCOUNTS"].includes(newStatus)) notifyClaimInBackground(updated, employee?.email, "Review Accounts comments");
+  if (newStatus === "PENDING_LEVEL_1_APPROVAL") notifyClaimInBackground(updated, nextApprover?.email || pendingWith, pendingWith === employee?.rmEmail ? "RM recommendation required" : "Level 1 approval required");
   revalidatePath("/accounts");
   revalidatePath("/approver");
   revalidatePath("/dashboard");
@@ -269,13 +269,13 @@ export async function approverAction(formData: FormData) {
   await addHistory({ claimHeaderId: id, actor: { ...user, name: actorName }, action: `APPROVER_${action.toUpperCase()}`, comments, previousStatus: claim.currentStatus, newStatus });
   const employeeMail = await prisma.user.findUnique({ where: { employeeId: claim.employeeId } });
   const next = pendingWith ? await prisma.user.findFirst({ where: { OR: [{ employeeId: pendingWith }, { email: pendingWith }] } }) : null;
-  if (pendingWith) await notifyClaim(updated, next?.email || pendingWith, isRmRecommendation ? "Level 1 approval required" : "Level 2 approval required");
+  if (pendingWith) notifyClaimInBackground(updated, next?.email || pendingWith, isRmRecommendation ? "Level 1 approval required" : "Level 2 approval required");
   if (newStatus === "FINAL_APPROVED") {
     const finalRecipients = [employeeMail?.email, employee.accountsEmail, employee.level1Email];
     if (claim.approvalLevelRequired >= 2 || Number(claim.totalAmount) > 25000) finalRecipients.push(employee.level2Email);
-    await notifyClaim(updated, [...new Set(finalRecipients.filter(Boolean))] as string[], "Claim final approved");
+    notifyClaimInBackground(updated, [...new Set(finalRecipients.filter(Boolean))] as string[], "Claim final approved");
   }
-  if (String(newStatus).startsWith("REJECTED")) await notifyClaim(updated, [employeeMail?.email, employee.accountsEmail].filter(Boolean) as string[], "Claim rejected");
+  if (String(newStatus).startsWith("REJECTED")) notifyClaimInBackground(updated, [employeeMail?.email, employee.accountsEmail].filter(Boolean) as string[], "Claim rejected");
   revalidatePath("/approver");
   revalidatePath("/accounts");
   revalidatePath("/dashboard");
