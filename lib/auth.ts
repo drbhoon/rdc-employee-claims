@@ -15,6 +15,12 @@ function secret() {
   return process.env.NEXTAUTH_SECRET || "dev-secret-change-me";
 }
 
+function secureCookies() {
+  if (process.env.AUTH_COOKIE_SECURE === "false") return false;
+  if (process.env.AUTH_COOKIE_SECURE === "true") return true;
+  return process.env.NODE_ENV === "production";
+}
+
 export async function hashPassword(password: string) {
   return bcrypt.hash(password, 12);
 }
@@ -35,7 +41,7 @@ export function setSessionCookie(token: string) {
   cookies().set(COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: secureCookies(),
     path: "/",
     maxAge: 60 * 60 * 8
   });

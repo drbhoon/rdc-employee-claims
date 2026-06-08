@@ -1,0 +1,11 @@
+.git
+.next
+.tmp
+node_modules
+npm-debug.log
+dev-server.log
+dev-server.err.log
+.env
+.env.local
+uploads/*
+!uploads/.gitkeep
