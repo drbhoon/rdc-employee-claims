@@ -16,7 +16,7 @@ export async function sendMail({ to, subject, html }: MailArgs) {
   const transporter = nodemailer.createTransport({
     host: SMTP_HOST,
     port: Number(SMTP_PORT),
-    secure: Number(SMTP_PORT) === 465,
+    secure: Number(SMTP_PORT) === 587,
     auth: SMTP_USER && SMTP_PASS ? { user: SMTP_USER, pass: SMTP_PASS } : undefined,
     tls: { rejectUnauthorized: false }
   });
