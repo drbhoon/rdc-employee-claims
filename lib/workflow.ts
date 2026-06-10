@@ -65,7 +65,7 @@ export async function notifyClaim(claim: ClaimHeader, to: string | string[] | un
   });
   const userNameByEmail = new Map(users.map((item) => [item.email?.toLowerCase(), item.name]));
 
-  for (const recipient of recipients) {
+  const results = await Promise.allSettled(recipients.map(async (recipient) => {
     const context = notificationContext(recipient, actionRequired, employee, userNameByEmail.get(recipient));
     await sendMail({
       to: recipient,
@@ -82,7 +82,30 @@ export async function notifyClaim(claim: ClaimHeader, to: string | string[] | un
         claimPath: `/claims/${claim.id}`
       })
     });
-  }
+  }));
+
+  results.forEach((result, index) => {
+    if (result.status === "rejected") {
+      console.error("Claim email failed", {
+        claimId: claim.claimId,
+        to: recipients[index],
+        actionRequired,
+        error: result.reason instanceof Error ? result.reason.message : result.reason
+      });
+    }
+  });
+}
+
+export function notifyClaimInBackground(claim: ClaimHeader, to: string | string[] | undefined | null, actionRequired: string) {
+  setTimeout(() => {
+    void notifyClaim(claim, to, actionRequired).catch((error) => {
+      console.error("Claim background email failed", {
+        claimId: claim.claimId,
+        actionRequired,
+        error: error instanceof Error ? error.message : error
+      });
+    });
+  }, 0);
 }
 
 function notificationContext(
