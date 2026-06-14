@@ -11,13 +11,13 @@ type ClaimRow = {
   submittedAt: Date | null;
 };
 
-export function ClaimTable({ claims }: { claims: ClaimRow[] }) {
+export function ClaimTable({ claims, compact = false }: { claims: ClaimRow[]; compact?: boolean }) {
   return (
     <div className="overflow-x-auto rounded-md border border-line bg-white">
-      <table>
+      <table className={compact ? "text-xs" : undefined}>
         <thead>
           <tr>
-            <th>Claim ID</th><th>Employee</th><th>Amount</th><th>Status</th><th>Pending With</th><th>Submitted</th><th></th>
+            <th>Claim ID</th><th>Employee</th><th>Amount</th><th>Status</th>{!compact && <th>Pending With</th>}<th>Submitted</th><th></th>
           </tr>
         </thead>
         <tbody>
@@ -27,12 +27,12 @@ export function ClaimTable({ claims }: { claims: ClaimRow[] }) {
               <td>{claim.employeeName}</td>
               <td>INR {String(claim.totalAmount)}</td>
               <td><StatusBadge status={claim.currentStatus} /></td>
-              <td>{claim.currentPendingWith || "-"}</td>
+              {!compact && <td>{claim.currentPendingWith || "-"}</td>}
               <td>{claim.submittedAt ? claim.submittedAt.toLocaleDateString("en-IN") : "-"}</td>
-              <td><Link className="btn-secondary" href={`/claims/${claim.id}`}>View</Link></td>
+              <td><Link className={compact ? "btn-secondary px-2 py-1 text-xs" : "btn-secondary"} href={`/claims/${claim.id}`}>View</Link></td>
             </tr>
           ))}
-          {!claims.length && <tr><td colSpan={7} className="text-center text-muted">No claims found.</td></tr>}
+          {!claims.length && <tr><td colSpan={compact ? 6 : 7} className="text-center text-muted">No claims found.</td></tr>}
         </tbody>
       </table>
     </div>
