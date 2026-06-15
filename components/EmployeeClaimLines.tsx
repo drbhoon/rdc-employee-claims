@@ -7,7 +7,7 @@ type ClaimTypeOption = {
   name: string;
 };
 
-export function EmployeeClaimLines({ claimTypes, today }: { claimTypes: ClaimTypeOption[]; today: string }) {
+export function EmployeeClaimLines({ claimTypes }: { claimTypes: ClaimTypeOption[] }) {
   const [rows, setRows] = useState([0]);
 
   return (
@@ -28,8 +28,7 @@ export function EmployeeClaimLines({ claimTypes, today }: { claimTypes: ClaimTyp
             {rows.map((row, index) => (
               <tr key={row}>
                 <td>
-                  <input type="hidden" name="claimDate" value={today} />
-                  {new Date(today).toLocaleDateString("en-IN")}
+                  <input type="date" name="claimDate" required />
                 </td>
                 <td>
                   <select name="claimTypeId">

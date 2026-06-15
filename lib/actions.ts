@@ -40,7 +40,7 @@ export async function createOrUpdateClaim(formData: FormData) {
   const remarks = formData.getAll("employeeRemarks").map(String);
   const lines = claimTypeIds.map((claimTypeId, i) => ({
     claimTypeId,
-    claimDate: claimDates[i] ? new Date(claimDates[i]) : new Date(),
+    claimDate: claimDates[i] ? new Date(`${claimDates[i]}T00:00:00.000+05:30`) : null,
     description: descriptions[i],
     amount: amounts[i],
     gstAmount: null,
@@ -51,6 +51,7 @@ export async function createOrUpdateClaim(formData: FormData) {
   })).filter((line) => line.claimTypeId && line.amount > 0);
   if (!lines.length) actionError(errorPath, "Claim line entry: add at least one expense type with an amount greater than zero.");
   for (const line of lines) {
+    if (!line.claimDate || Number.isNaN(line.claimDate.getTime())) actionError(errorPath, "Claim line entry: date is required for each expense line.");
     if (line.attachment?.size) {
       const maxMb = Number(process.env.MAX_UPLOAD_SIZE_MB || 5);
       if (!allowedFileTypes.includes(line.attachment.type)) actionError(errorPath, "Supporting document upload: only PDF, JPG, JPEG and PNG files are allowed.");
@@ -120,7 +121,7 @@ export async function createOrUpdateClaim(formData: FormData) {
         data: {
           claimHeaderId: header.id,
           claimTypeId: line.claimTypeId,
-          claimDate: line.claimDate,
+          claimDate: line.claimDate!,
           description: line.description,
           amount: line.amount,
           gstAmount: null,

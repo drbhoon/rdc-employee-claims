@@ -58,10 +58,10 @@ export default async function ClaimDetail({ params, searchParams }: { params: { 
               <input type="hidden" name="id" value={claim.id} />
               {claim.lines.map((line) => (
                 <div key={line.id} className="grid gap-2 border-t border-line pt-3 md:grid-cols-8">
-                  <input type="hidden" name="claimDate" value={line.claimDate.toISOString().slice(0, 10)} />
+                  <div className="md:col-span-2"><label>Date</label><input type="date" name="claimDate" required defaultValue={line.claimDate.toISOString().slice(0, 10)} /></div>
                   <div className="md:col-span-3"><label>Type of Expenses</label><select name="claimTypeId" defaultValue={line.claimTypeId}>{orderedClaimTypes.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select></div>
-                  <div className="md:col-span-3"><label>Description</label><input name="description" defaultValue={line.description} /></div>
-                  <div className="md:col-span-2"><label>Amount</label><input type="number" step="0.01" name="amount" defaultValue={String(line.amount)} /></div>
+                  <div className="md:col-span-2"><label>Description</label><input name="description" defaultValue={line.description} /></div>
+                  <div><label>Amount</label><input type="number" step="0.01" name="amount" defaultValue={String(line.amount)} /></div>
                 </div>
               ))}
               <div className="flex gap-2"><button className="btn-secondary" name="action" value="draft">Save Draft</button><ActionButton name="action" value="submit" variant="primary" confirmMessage="Are you sure you want to submit this claim?">Submit Claim</ActionButton></div>
