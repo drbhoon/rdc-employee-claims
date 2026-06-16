@@ -36,7 +36,8 @@ export async function sendMail({ to, subject, html }: MailArgs) {
       connectionTimeout: Number(SMTP_CONNECTION_TIMEOUT_MS || 10000),
       greetingTimeout: Number(SMTP_GREETING_TIMEOUT_MS || 10000),
       socketTimeout: Number(SMTP_SOCKET_TIMEOUT_MS || 15000),
-      auth: SMTP_USER && SMTP_PASS ? { user: SMTP_USER, pass: SMTP_PASS } : undefined
+      auth: SMTP_USER && SMTP_PASS ? { user: SMTP_USER, pass: SMTP_PASS } : undefined,
+      tls: { rejectUnauthorized: false }
     });
   }
   const activeTransporter = transporter;
