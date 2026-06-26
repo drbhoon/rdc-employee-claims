@@ -97,6 +97,7 @@ model ClaimHeader {
   currentStatus         ClaimStatus @default(DRAFT)
   currentPendingWith    String?
   approvalLevelRequired Int         @default(0)
+  amendmentRemarks      String?
   submittedAt           DateTime?
   finalApprovedAt       DateTime?
   paymentDownloadedAt   DateTime?

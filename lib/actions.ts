@@ -19,6 +19,19 @@ function actionError(path: string, message: string): never {
   redirect(`${path}?error=${encodeURIComponent(message)}`);
 }
 
+const editableStatuses: ClaimStatus[] = [
+  "DRAFT",
+  "RETURNED_BY_ACCOUNTS",
+  "REJECTED_BY_ACCOUNTS",
+  "REJECTED_BY_LEVEL_1",
+  "REJECTED_BY_LEVEL_2",
+  "REJECTED_BY_LEVEL_3"
+];
+
+function isRejectedStatus(status: ClaimStatus) {
+  return String(status).startsWith("REJECTED");
+}
+
 function requireComment(formData: FormData, path: string, label: string) {
   const comments = String(formData.get("comments") || "").trim();
   if (!comments) actionError(path, `${label}: reason/comments are required.`);
@@ -30,6 +43,8 @@ export async function createOrUpdateClaim(formData: FormData) {
   const claimId = String(formData.get("id") || "");
   const errorPath = claimId ? `/claims/${claimId}` : "/claims/new";
   const action = String(formData.get("action") || "draft");
+  const amendmentRemarks = String(formData.get("amendmentRemarks") || "").trim();
+  const lineIds = formData.getAll("lineId").map(String);
   const claimTypeIds = formData.getAll("claimTypeId").map(String);
   const claimDates = formData.getAll("claimDate").map(String);
   const descriptions = formData.getAll("description").map(String);
@@ -39,6 +54,7 @@ export async function createOrUpdateClaim(formData: FormData) {
   const billNumbers = formData.getAll("billNumber").map(String);
   const remarks = formData.getAll("employeeRemarks").map(String);
   const lines = claimTypeIds.map((claimTypeId, i) => ({
+    id: lineIds[i] || null,
     claimTypeId,
     claimDate: claimDates[i] ? new Date(`${claimDates[i]}T00:00:00.000+05:30`) : null,
     description: descriptions[i],
@@ -60,10 +76,11 @@ export async function createOrUpdateClaim(formData: FormData) {
   }
 
   const employee = await prisma.user.findUniqueOrThrow({ where: { employeeId: user.employeeId } });
-  const existing = claimId ? await prisma.claimHeader.findUnique({ where: { id: claimId } }) : null;
+  const existing = claimId ? await prisma.claimHeader.findUnique({ where: { id: claimId }, include: { lines: { select: { id: true } } } }) : null;
   if (claimId && !existing) actionError("/dashboard", "Claim edit: claim was not found.");
   if (existing && existing.employeeId !== user.employeeId) actionError(errorPath, "Claim edit: you can edit only your own claims.");
-  if (existing && !["DRAFT", "RETURNED_BY_ACCOUNTS"].includes(existing.currentStatus)) actionError(errorPath, "Claim edit: this claim can no longer be edited.");
+  if (existing && !editableStatuses.includes(existing.currentStatus)) actionError(errorPath, "Claim edit: this claim can no longer be edited.");
+  if (action === "submit" && existing && isRejectedStatus(existing.currentStatus) && !amendmentRemarks) actionError(errorPath, "Claim amendment: amendment remarks are required before resubmitting a rejected claim.");
   const claimTypes = await prisma.claimType.findMany({ where: { id: { in: lines.map((l) => l.claimTypeId) } } });
   for (const line of lines) {
     const type = claimTypes.find((t) => t.id === line.claimTypeId);
@@ -86,19 +103,22 @@ export async function createOrUpdateClaim(formData: FormData) {
       if (duplicate) actionError(errorPath, "Duplicate warning: same bill number, expense type and amount already exists for this employee.");
     }
   }
-  const status: ClaimStatus = action === "submit" ? "SUBMITTED_TO_ACCOUNTS" : "DRAFT";
-  const generatedClaimId = existing?.claimId || (action === "submit" ? await nextClaimId() : `DRAFT-${Date.now()}`);
+  const status: ClaimStatus = action === "submit" ? "SUBMITTED_TO_ACCOUNTS" : (existing?.currentStatus || "DRAFT");
+  const shouldAssignClaimId = action === "submit" && (!existing || existing.claimId.startsWith("DRAFT-"));
+  const generatedClaimId = shouldAssignClaimId ? await nextClaimId() : (existing?.claimId || `DRAFT-${Date.now()}`);
+  const editableLineIds = new Set(existing?.lines.map((line) => line.id) || []);
 
   const claim = await prisma.$transaction(async (tx) => {
     const header = existing
       ? await tx.claimHeader.update({
           where: { id: existing.id },
           data: {
+            claimId: generatedClaimId,
             totalAmount,
             currentStatus: status,
-            currentPendingWith: action === "submit" ? employee.accountsEmail : null,
-            submittedAt: action === "submit" ? new Date() : existing.submittedAt,
-            lines: { deleteMany: {} }
+            amendmentRemarks: amendmentRemarks || existing.amendmentRemarks,
+            currentPendingWith: action === "submit" ? employee.accountsEmail : existing.currentPendingWith,
+            submittedAt: action === "submit" ? new Date() : existing.submittedAt
           }
         })
       : await tx.claimHeader.create({
@@ -112,24 +132,43 @@ export async function createOrUpdateClaim(formData: FormData) {
             costCenter: employee.costCenter,
             totalAmount,
             currentStatus: status,
+            amendmentRemarks: amendmentRemarks || null,
             currentPendingWith: action === "submit" ? employee.accountsEmail : null,
             submittedAt: action === "submit" ? new Date() : null
           }
         });
-    for (const line of lines) {
-      const createdLine = await tx.claimLine.create({
-        data: {
-          claimHeaderId: header.id,
-          claimTypeId: line.claimTypeId,
-          claimDate: line.claimDate!,
-          description: line.description,
-          amount: line.amount,
-          gstAmount: null,
-          vendorName: line.vendorName,
-          billNumber: line.billNumber,
-          employeeRemarks: line.employeeRemarks
+    if (existing) {
+      const existingLineIds = lines.map((line) => line.id).filter((id): id is string => !!id && editableLineIds.has(id));
+      await tx.claimLine.deleteMany({
+        where: {
+          claimHeaderId: existing.id,
+          ...(existingLineIds.length ? { id: { notIn: existingLineIds } } : {})
         }
       });
+    }
+    for (const line of lines) {
+      const lineData = {
+        claimTypeId: line.claimTypeId,
+        claimDate: line.claimDate!,
+        description: line.description,
+        amount: line.amount,
+        gstAmount: null,
+        vendorName: line.vendorName,
+        billNumber: line.billNumber,
+        employeeRemarks: line.employeeRemarks
+      };
+      const existingLineId = line.id && editableLineIds.has(line.id) ? line.id : null;
+      const claimLine = existingLineId && existing
+        ? await tx.claimLine.update({
+            where: { id: existingLineId },
+            data: lineData
+          })
+        : await tx.claimLine.create({
+            data: {
+              claimHeaderId: header.id,
+              ...lineData
+            }
+          });
       if (line.attachment?.size) {
         const ext = path.extname(line.attachment.name).toLowerCase();
         const stored = `${randomUUID()}${ext}`;
@@ -138,7 +177,7 @@ export async function createOrUpdateClaim(formData: FormData) {
         await writeFile(path.join(dir, stored), Buffer.from(await line.attachment.arrayBuffer()));
         await tx.claimAttachment.create({
           data: {
-            claimLineId: createdLine.id,
+            claimLineId: claimLine.id,
             fileName: line.attachment.name,
             fileUrl: `/api/attachments/${stored}`,
             fileType: line.attachment.type,
@@ -155,7 +194,8 @@ export async function createOrUpdateClaim(formData: FormData) {
           actionByEmployeeId: user.employeeId,
           actionByName: user.name,
           roleAtAction: user.role,
-          action: existing?.currentStatus === "RETURNED_BY_ACCOUNTS" ? "RESUBMITTED" : "SUBMITTED",
+          action: existing && isRejectedStatus(existing.currentStatus) ? "AMENDED_AND_RESUBMITTED" : existing?.currentStatus === "RETURNED_BY_ACCOUNTS" ? "RESUBMITTED" : "SUBMITTED",
+          comments: amendmentRemarks || undefined,
           previousStatus: existing?.currentStatus || "DRAFT",
           newStatus: "SUBMITTED_TO_ACCOUNTS"
         }
@@ -164,7 +204,10 @@ export async function createOrUpdateClaim(formData: FormData) {
     return header;
   });
 
-  if (action === "submit") notifyClaimInBackground(claim, employee.accountsEmail, "Accounts audit required");
+  if (action === "submit") {
+    notifyClaimInBackground(claim, employee.accountsEmail, "Accounts audit required");
+    notifyClaimInBackground(claim, employee.email, "Claim submitted to Accounts");
+  }
   revalidatePath("/dashboard");
   redirect(`/claims/${claim.id}`);
 }
@@ -219,6 +262,8 @@ export async function accountsAction(formData: FormData) {
   const employee = await prisma.user.findUnique({ where: { employeeId: claim.employeeId } });
   const nextApprover = pendingWith ? await prisma.user.findFirst({ where: { OR: [{ employeeId: pendingWith }, { email: pendingWith }] } }) : null;
   if (["RETURNED_BY_ACCOUNTS", "REJECTED_BY_ACCOUNTS"].includes(newStatus)) notifyClaimInBackground(updated, employee?.email, "Review Accounts comments");
+  else if (newStatus === "PENDING_LEVEL_1_APPROVAL") notifyClaimInBackground(updated, employee?.email, "Claim passed by Accounts and moved to approval");
+  else notifyClaimInBackground(updated, employee?.email, `Claim status updated to ${newStatus}`);
   if (newStatus === "PENDING_LEVEL_1_APPROVAL") notifyClaimInBackground(updated, nextApprover?.email || pendingWith, pendingWith === employee?.rmEmail ? "RM recommendation required" : "Level 1 approval required");
   revalidatePath("/accounts");
   revalidatePath("/approver");
@@ -271,6 +316,7 @@ export async function approverAction(formData: FormData) {
   const employeeMail = await prisma.user.findUnique({ where: { employeeId: claim.employeeId } });
   const next = pendingWith ? await prisma.user.findFirst({ where: { OR: [{ employeeId: pendingWith }, { email: pendingWith }] } }) : null;
   if (pendingWith) notifyClaimInBackground(updated, next?.email || pendingWith, isRmRecommendation ? "Level 1 approval required" : "Level 2 approval required");
+  if (pendingWith) notifyClaimInBackground(updated, employeeMail?.email, `Claim approved and moved to ${newStatus}`);
   if (newStatus === "FINAL_APPROVED") {
     const finalRecipients = [employeeMail?.email, employee.accountsEmail, employee.level1Email];
     if (claim.approvalLevelRequired >= 2 || Number(claim.totalAmount) > 25000) finalRecipients.push(employee.level2Email);

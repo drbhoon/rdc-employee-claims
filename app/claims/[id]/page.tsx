@@ -7,6 +7,16 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { employeeExpenseTypes } from "@/lib/expenseTypes";
 import { ActionButton } from "@/components/ActionButton";
 import { ErrorNotice } from "@/components/ErrorNotice";
+import { EmployeeClaimLines } from "@/components/EmployeeClaimLines";
+
+const editableStatuses = [
+  "DRAFT",
+  "RETURNED_BY_ACCOUNTS",
+  "REJECTED_BY_ACCOUNTS",
+  "REJECTED_BY_LEVEL_1",
+  "REJECTED_BY_LEVEL_2",
+  "REJECTED_BY_LEVEL_3"
+];
 
 export default async function ClaimDetail({ params, searchParams }: { params: { id: string }; searchParams: { error?: string } }) {
   const user = await requireUser();
@@ -23,7 +33,7 @@ export default async function ClaimDetail({ params, searchParams }: { params: { 
     claim.currentPendingWith === user.email ||
     claim.history.some((h) => h.actionByEmployeeId === user.employeeId);
   if (!canSee) notFound();
-  const canEdit = claim.employeeId === user.employeeId && ["DRAFT", "RETURNED_BY_ACCOUNTS"].includes(claim.currentStatus);
+  const canEdit = claim.employeeId === user.employeeId && editableStatuses.includes(claim.currentStatus);
   const canAccountsAudit = ["ACCOUNTS", "ADMIN"].includes(user.role) && claim.currentStatus === "SUBMITTED_TO_ACCOUNTS";
   const canMarkPaymentDownloaded = ["ACCOUNTS", "ADMIN"].includes(user.role) && claim.currentStatus === "FINAL_APPROVED";
   const canMarkPaid = ["ACCOUNTS", "ADMIN"].includes(user.role) && claim.currentStatus === "PAYMENT_DOWNLOADED";
@@ -53,17 +63,31 @@ export default async function ClaimDetail({ params, searchParams }: { params: { 
             <div><label>Pending With</label><div className="mt-2">{claim.currentPendingWith || "-"}</div></div>
             <div><label>Submitted</label><div className="mt-2">{claim.submittedAt?.toLocaleString("en-IN") || "-"}</div></div>
           </div>
+          {claim.amendmentRemarks && (
+            <div className="mb-4">
+              <label>Amendment Remarks</label>
+              <div className="mt-2 rounded-md border border-line bg-panel px-3 py-2 text-sm">{claim.amendmentRemarks}</div>
+            </div>
+          )}
           {canEdit ? (
-            <form action={createOrUpdateClaim} className="space-y-3">
+            <form action={createOrUpdateClaim} encType="multipart/form-data" className="space-y-3">
               <input type="hidden" name="id" value={claim.id} />
-              {claim.lines.map((line) => (
-                <div key={line.id} className="grid gap-2 border-t border-line pt-3 md:grid-cols-8">
-                  <div className="md:col-span-2"><label>Date</label><input type="date" name="claimDate" required defaultValue={line.claimDate.toISOString().slice(0, 10)} /></div>
-                  <div className="md:col-span-3"><label>Type of Expenses</label><select name="claimTypeId" defaultValue={line.claimTypeId}>{orderedClaimTypes.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select></div>
-                  <div className="md:col-span-2"><label>Description</label><input name="description" defaultValue={line.description} /></div>
-                  <div><label>Amount</label><input type="number" step="0.01" name="amount" defaultValue={String(line.amount)} /></div>
+              {claim.currentStatus !== "DRAFT" && (
+                <div>
+                  <label>Amendment Remarks</label>
+                  <textarea name="amendmentRemarks" defaultValue={claim.amendmentRemarks || ""} placeholder="Explain the amendment before resubmitting" />
                 </div>
-              ))}
+              )}
+              <EmployeeClaimLines
+                claimTypes={orderedClaimTypes}
+                initialLines={claim.lines.map((line) => ({
+                  id: line.id,
+                  claimDate: line.claimDate.toISOString().slice(0, 10),
+                  claimTypeId: line.claimTypeId,
+                  description: line.description,
+                  amount: String(line.amount)
+                }))}
+              />
               <div className="flex gap-2"><button className="btn-secondary" name="action" value="draft">Save Draft</button><ActionButton name="action" value="submit" variant="primary" confirmMessage="Are you sure you want to submit this claim?">Submit Claim</ActionButton></div>
             </form>
           ) : (

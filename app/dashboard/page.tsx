@@ -5,6 +5,15 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { ApproverIcon, DocIcon, IdIcon, PeopleIcon, PieIcon, PinIcon, PlantIcon, PlusCircleIcon, UserIcon } from "@/components/UiIcons";
 
+const editableStatuses = [
+  "DRAFT",
+  "RETURNED_BY_ACCOUNTS",
+  "REJECTED_BY_ACCOUNTS",
+  "REJECTED_BY_LEVEL_1",
+  "REJECTED_BY_LEVEL_2",
+  "REJECTED_BY_LEVEL_3"
+];
+
 export default async function Dashboard() {
   const user = await requireUser();
   const employee = await prisma.user.findUniqueOrThrow({
@@ -103,6 +112,7 @@ export default async function Dashboard() {
               <th>Supporting Document</th>
               <th>Status</th>
               <th>Pending / Result</th>
+              <th>Remarks</th>
               <th>Claim</th>
             </tr>
           </thead>
@@ -120,10 +130,11 @@ export default async function Dashboard() {
                 </td>
                 <td><StatusBadge status={claim.currentStatus} /></td>
                 <td>{pendingLabel(claim)}</td>
-                <td><Link className="btn-secondary" href={`/claims/${claim.id}`}>{claim.claimId}</Link></td>
+                <td>{claim.amendmentRemarks || "-"}</td>
+                <td><Link className="btn-secondary" href={`/claims/${claim.id}`}>{editableStatuses.includes(claim.currentStatus) ? `Resume ${claim.claimId}` : claim.claimId}</Link></td>
               </tr>
             ))}
-            {!lineRows.length && <tr><td colSpan={8} className="text-center text-muted">No claim lines yet.</td></tr>}
+            {!lineRows.length && <tr><td colSpan={9} className="text-center text-muted">No claim lines yet.</td></tr>}
           </tbody>
         </table>
       </div>
