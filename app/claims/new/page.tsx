@@ -22,7 +22,8 @@ export default async function NewClaimPage({ searchParams }: { searchParams: { e
       <form action={createOrUpdateClaim} encType="multipart/form-data" className="space-y-4">
         <div className="card flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
           <div><span className="font-semibold">Employee:</span> {employee.employeeId} - {employee.name}</div>
-          <div><span className="font-semibold">Department:</span> {employee.department || "-"}</div>
+          <div><span className="font-semibold">Company:</span> {employee.company || "-"}</div>
+          <div><span className="font-semibold">Designation:</span> {employee.designation || "-"}</div>
           <div><span className="font-semibold">Cost Center:</span> {employee.costCenter || "-"}</div>
           <div><span className="font-semibold">Date:</span> {new Date().toLocaleDateString("en-IN")}</div>
         </div>

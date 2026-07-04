@@ -44,7 +44,7 @@ async function upsertUser(data: {
       email: data.email,
       passwordHash,
       role: data.role,
-      department: data.role === "ACCOUNTS" ? "Finance" : "Operations",
+      company: data.role === "ACCOUNTS" ? "Finance" : "Operations",
       location: "Mumbai",
       plant: "Plant A",
       costCenter: data.role === "ACCOUNTS" ? "FIN100" : "OPS100",

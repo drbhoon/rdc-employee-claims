@@ -12,7 +12,8 @@ export type EmployeeUploadRow = {
   login_id?: string;
   password?: string;
   mobile?: string;
-  department?: string;
+  company?: string;
+  designation?: string;
   location?: string;
   plant?: string;
   cost_center?: string;
@@ -65,7 +66,8 @@ export function buildTemplateWorkbook() {
       login_id: "employee@example.com",
       password: "Welcome@123",
       mobile: "9999999999",
-      department: "Operations",
+      company: "RDC Concrete India Pvt Ltd",
+      designation: "Sales Executive",
       location: "Mumbai",
       plant: "Plant A",
       cost_center: "CC100",
@@ -87,7 +89,8 @@ export function buildTemplateWorkbook() {
       login_id: "old.employee@example.com",
       password: "",
       mobile: "",
-      department: "",
+      company: "",
+      designation: "",
       location: "",
       plant: "",
       cost_center: "",

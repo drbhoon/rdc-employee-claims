@@ -35,7 +35,8 @@ export async function POST(request: Request) {
       email: loginId,
       mobile: clean(row.mobile) || null,
       role,
-      department: clean(row.department) || null,
+      company: clean(row.company) || null,
+      designation: clean(row.designation) || null,
       location: clean(row.location) || null,
       plant: clean(row.plant) || null,
       costCenter: clean(row.cost_center) || null,
@@ -59,7 +60,8 @@ export async function POST(request: Request) {
         mobile: clean(row.mobile) || null,
         passwordHash,
         role,
-        department: clean(row.department) || null,
+        company: clean(row.company) || null,
+        designation: clean(row.designation) || null,
         location: clean(row.location) || null,
         plant: clean(row.plant) || null,
         costCenter: clean(row.cost_center) || null,
@@ -132,7 +134,7 @@ async function ensureWorkflowLogin(name: string, email: string, role: "ACCOUNTS"
       email,
       passwordHash: await bcrypt.hash(defaultPassword, 12),
       role,
-      department: role === "ACCOUNTS" ? "Finance" : "Approvals",
+      company: role === "ACCOUNTS" ? "Finance" : "Approvals",
       isActive: true,
       mustChangePassword: true
     }

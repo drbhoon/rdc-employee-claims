@@ -45,7 +45,8 @@ model User {
   mobile             String?
   passwordHash       String
   role               Role     @default(EMPLOYEE)
-  department         String?
+  company            String?
+  designation        String?
   location           String?
   plant              String?
   costCenter         String?
@@ -89,7 +90,8 @@ model ClaimHeader {
   claimId               String      @unique
   employeeId            String
   employeeName          String
-  department            String?
+  company               String?
+  designation           String?
   location              String?
   plant                 String?
   costCenter            String?

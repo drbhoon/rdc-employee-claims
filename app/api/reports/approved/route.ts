@@ -26,7 +26,8 @@ export async function GET(request: Request) {
     "Claim ID": claim.claimId,
     "Employee ID": claim.employeeId,
     "Employee Name": claim.employeeName,
-    Department: claim.department,
+    Company: claim.company,
+    Designation: claim.designation,
     Location: claim.location,
     Plant: claim.plant,
     "Cost Center": claim.costCenter,
@@ -48,7 +49,7 @@ export async function GET(request: Request) {
   });
   summary.forEach((amount, key) => {
     const [cc, type, glCode] = key.split("|");
-    rows.push({ "Claim ID": "SUMMARY", "Employee ID": "", "Employee Name": "", Department: "", Location: "", Plant: "", "Cost Center": cc, "Claim Type": type, "GL Code": glCode, "Claim Date": "", Description: "Cost-wise summary", Amount: amount.toFixed(2), "GST Amount": "", "Vendor Name": "", "Bill Number": "", "Approval Date": "", "Final Status": "" });
+    rows.push({ "Claim ID": "SUMMARY", "Employee ID": "", "Employee Name": "", Company: "", Designation: "", Location: "", Plant: "", "Cost Center": cc, "Claim Type": type, "GL Code": glCode, "Claim Date": "", Description: "Cost-wise summary", Amount: amount.toFixed(2), "GST Amount": "", "Vendor Name": "", "Bill Number": "", "Approval Date": "", "Final Status": "" });
   });
   return csvResponse("approved-claims.csv", rows);
 }
