@@ -54,7 +54,7 @@ export function cleanEmail(value: unknown) {
 export function parseEmployeeUpload(buffer: Buffer) {
   const workbook = XLSX.read(buffer, { type: "buffer" });
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  return XLSX.utils.sheet_to_json<EmployeeUploadRow>(sheet, { defval: "" });
+  return XLSX.utils.sheet_to_json<EmployeeUploadRow>(sheet, { defval: "" }).filter(isMeaningfulUploadRow);
 }
 
 export function buildTemplateWorkbook() {
@@ -252,4 +252,8 @@ export async function validateRows(rows: EmployeeUploadRow[]) {
 
 export function isWorkflowPlaceholderEmployeeId(employeeId: string) {
   return employeeId.startsWith("APPROVER-") || employeeId.startsWith("ACCOUNTS-");
+}
+
+function isMeaningfulUploadRow(row: EmployeeUploadRow) {
+  return uploadColumns.some((column) => clean(row[column as keyof EmployeeUploadRow]).length > 0);
 }

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSession, isSuperAdmin } from "@/lib/auth";
+import { isWorkflowPlaceholderEmployeeId } from "@/lib/employeeUpload";
 import { prisma } from "@/lib/prisma";
 
 const columns = [
@@ -53,7 +54,7 @@ export async function GET() {
     }
   });
 
-  const rows = users.map((item) => [
+  const rows = users.filter((item) => !isWorkflowPlaceholderEmployeeId(item.employeeId)).map((item) => [
     item.employeeId,
     item.name,
     item.email || "",
