@@ -149,6 +149,7 @@ export async function validateRows(rows: EmployeeUploadRow[]) {
   const errors: { rowNumber: number; employeeId?: string; errorMessage: string }[] = [];
   const valid: EmployeeUploadRow[] = [];
   const deleteIds: string[] = [];
+  const loginRows: { rowNumber: number; employeeId: string; loginId: string }[] = [];
 
   rows.forEach((row, idx) => {
     const rowNumber = idx + 2;
@@ -187,6 +188,7 @@ export async function validateRows(rows: EmployeeUploadRow[]) {
     if (employeeId) seenEmployees.add(employeeId);
     if (loginId) seenLoginIds.add(loginId);
     if (action === "DELETE" && employeeId) deleteIds.push(employeeId);
+    if (employeeId && loginId && action !== "DELETE") loginRows.push({ rowNumber, employeeId, loginId });
 
     if (rowErrors.length) errors.push({ rowNumber, employeeId, errorMessage: rowErrors.join("; ") });
     else valid.push(row);
@@ -218,9 +220,36 @@ export async function validateRows(rows: EmployeeUploadRow[]) {
     });
   }
 
+  if (loginRows.length) {
+    const existingLoginUsers = await prisma.user.findMany({
+      where: { email: { in: loginRows.map((row) => row.loginId) } },
+      select: { employeeId: true, email: true }
+    });
+    const ownerByEmail = new Map(existingLoginUsers.map((user) => [user.email?.toLowerCase(), user.employeeId]));
+    loginRows.forEach((row) => {
+      const ownerEmployeeId = ownerByEmail.get(row.loginId);
+      if (
+        ownerEmployeeId &&
+        ownerEmployeeId !== row.employeeId &&
+        ownerEmployeeId !== "SUPERADMIN" &&
+        !isWorkflowPlaceholderEmployeeId(ownerEmployeeId)
+      ) {
+        errors.push({
+          rowNumber: row.rowNumber,
+          employeeId: row.employeeId,
+          errorMessage: `login_id already belongs to employee_id ${ownerEmployeeId}.`
+        });
+      }
+    });
+  }
+
   const blocked = new Set(errors.map((error) => `${error.rowNumber}:${error.employeeId || ""}`));
   return {
     valid: valid.filter((row) => !blocked.has(`${rows.indexOf(row) + 2}:${clean(row.employee_id)}`)),
     errors
   };
+}
+
+export function isWorkflowPlaceholderEmployeeId(employeeId: string) {
+  return employeeId.startsWith("APPROVER-") || employeeId.startsWith("ACCOUNTS-");
 }
