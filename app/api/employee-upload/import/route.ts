@@ -36,18 +36,20 @@ export async function POST(request: Request) {
 
       const loginId = cleanEmail(row.login_id);
       await releaseReservedLogin(loginId, employeeId);
-      const rowPassword = clean(row.password);
+      const rowPassword = loginId === superadminEmail()
+        ? String(process.env.SUPERADMIN_PASSWORD || defaultPassword)
+        : clean(row.password);
       const passwordHash = rowPassword ? await bcrypt.hash(rowPassword, 12) : defaultPasswordHash;
       const role = uploadRole(row, loginId);
       const baseData = employeeData(row, role, loginId);
-      const updateData = rowPassword ? { ...baseData, passwordHash, mustChangePassword: true } : baseData;
+      const updateData = rowPassword ? { ...baseData, passwordHash, mustChangePassword: loginId !== superadminEmail() } : baseData;
       await prisma.user.upsert({
         where: { employeeId },
         create: {
           employeeId,
           ...baseData,
           passwordHash,
-          mustChangePassword: true
+          mustChangePassword: loginId !== superadminEmail()
         },
         update: updateData
       });
