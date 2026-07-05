@@ -115,7 +115,7 @@ Admin can download the template from the Admin dashboard. Upload columns:
 
 `action`, `employee_id`, `employee_name`, `login_id`, `password`, `mobile`, `company`, `designation`, `location`, `plant`, `cost_center`, `accounts_name`, `accounts_email`, `rm_name`, `rm_email`, `level1_name`, `level1_email`, `level2_name`, `level2_email`, `role`, `is_active`
 
-Actions allowed: `ADD`, `UPDATE`, `DELETE`. Accounts, Level1, and Level2 are mandatory. RM is optional; when present, RM receives the claim after Accounts as a recommending authority before Level1. DELETE rows are blocked when the employee has open claims.
+Actions allowed: `ADD`, `UPDATE`, `DELETE`. Accounts and Level2 are mandatory. Level1 is optional; when blank, the claim goes to Level2 directly. RM is optional; when present, RM receives the claim after Accounts as a recommending authority before Level1 or Level2. DELETE rows are blocked when the employee has open claims.
 
 For new employees, the login ID is the uploaded `login_id` email. If the row has a `password`, that password is imported. Otherwise the app uses the upload screen default password, then `DEFAULT_EMPLOYEE_PASSWORD`, then `Welcome@123`.
 

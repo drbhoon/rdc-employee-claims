@@ -98,8 +98,8 @@ export function buildTemplateWorkbook() {
       accounts_email: "accounts@example.com",
       rm_name: "New Reporting Manager",
       rm_email: "new.rm@example.com",
-      level1_name: "New Level1 Approver",
-      level1_email: "new.level1@example.com",
+      level1_name: "",
+      level1_email: "",
       level2_name: "New Level2 Approver",
       level2_email: "new.level2@example.com",
       role: "EMPLOYEE",
@@ -158,7 +158,9 @@ export async function validateRows(rows: EmployeeUploadRow[]) {
     const loginId = cleanEmail(row.login_id);
     const accountsEmail = cleanEmail(row.accounts_email);
     const rmEmail = cleanEmail(row.rm_email);
+    const level1Name = clean(row.level1_name);
     const level1Email = cleanEmail(row.level1_email);
+    const level2Name = clean(row.level2_name);
     const level2Email = cleanEmail(row.level2_email);
     const role = clean(row.role || "EMPLOYEE").toUpperCase();
 
@@ -172,10 +174,10 @@ export async function validateRows(rows: EmployeeUploadRow[]) {
     if (!accountsEmail) rowErrors.push("accounts_email is required");
     if (accountsEmail && !validEmail(accountsEmail)) rowErrors.push("accounts_email must be a valid email");
     if (rmEmail && !validEmail(rmEmail)) rowErrors.push("rm_email must be a valid email or '-'");
-    if (!clean(row.level1_name)) rowErrors.push("level1_name is required");
-    if (!level1Email) rowErrors.push("level1_email is required");
+    if ((level1Name || level1Email) && !level1Name) rowErrors.push("level1_name is required when level1_email is provided");
+    if ((level1Name || level1Email) && !level1Email) rowErrors.push("level1_email is required when level1_name is provided");
     if (level1Email && !validEmail(level1Email)) rowErrors.push("level1_email must be a valid email");
-    if (!clean(row.level2_name)) rowErrors.push("level2_name is required");
+    if (!level2Name) rowErrors.push("level2_name is required");
     if (!level2Email) rowErrors.push("level2_email is required");
     if (level2Email && !validEmail(level2Email)) rowErrors.push("level2_email must be a valid email");
     if (employeeId && seenEmployees.has(employeeId)) rowErrors.push("duplicate employee_id in file");
