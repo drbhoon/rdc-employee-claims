@@ -4,7 +4,6 @@ import { employeeExpenseTypes, expenseGlCodes } from "../lib/expenseTypes";
 
 const prisma = new PrismaClient();
 const SUPERADMIN_EMAIL = (process.env.SUPERADMIN_EMAIL || "ksbhoon@rdc.in").trim().toLowerCase();
-const SUPERADMIN_PASSWORD = process.env.SUPERADMIN_PASSWORD || "Superadmin@123";
 
 async function upsertUser(data: {
   employeeId: string;
@@ -137,16 +136,13 @@ async function main() {
 }
 
 async function ensureSuperadmin() {
-  const passwordHash = await bcrypt.hash(SUPERADMIN_PASSWORD, 12);
   const existingEmailOwner = await prisma.user.findUnique({ where: { email: SUPERADMIN_EMAIL } });
   if (existingEmailOwner) {
     await prisma.user.update({
       where: { id: existingEmailOwner.id },
       data: {
         role: "ADMIN",
-        passwordHash,
-        isActive: true,
-        mustChangePassword: false
+        isActive: true
       }
     });
     await prisma.user.updateMany({
@@ -170,7 +166,6 @@ async function ensureSuperadmin() {
         name: process.env.SUPERADMIN_NAME || "Superadmin",
         email: SUPERADMIN_EMAIL,
         role: "ADMIN",
-        passwordHash,
         isActive: true,
         mustChangePassword: false
       }
@@ -181,7 +176,7 @@ async function ensureSuperadmin() {
   await upsertUser({
     employeeId: "SUPERADMIN",
     name: process.env.SUPERADMIN_NAME || "Superadmin",
-    password: SUPERADMIN_PASSWORD,
+    password: process.env.SUPERADMIN_PASSWORD || "Superadmin@123",
     role: "ADMIN",
     email: SUPERADMIN_EMAIL
   });
