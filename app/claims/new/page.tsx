@@ -6,6 +6,7 @@ import { employeeExpenseTypes } from "@/lib/expenseTypes";
 import { EmployeeClaimLines } from "@/components/EmployeeClaimLines";
 import { ActionButton } from "@/components/ActionButton";
 import { ErrorNotice } from "@/components/ErrorNotice";
+import { ClaimCertification } from "@/components/ClaimCertification";
 
 export default async function NewClaimPage({ searchParams }: { searchParams: { error?: string } }) {
   const user = await requireUser();
@@ -27,8 +28,9 @@ export default async function NewClaimPage({ searchParams }: { searchParams: { e
           <div><span className="font-semibold">Date:</span> {new Date().toLocaleDateString("en-IN")}</div>
         </div>
         <EmployeeClaimLines claimTypes={orderedClaimTypes} />
+        <ClaimCertification />
         <div className="flex gap-2">
-          <button className="btn-secondary" name="action" value="draft">Save Draft</button>
+          <button className="btn-secondary" name="action" value="draft" formNoValidate>Save Draft</button>
           <ActionButton name="action" value="submit" variant="primary" confirmMessage="Are you sure you want to submit this claim?">Submit Claim</ActionButton>
         </div>
       </form>

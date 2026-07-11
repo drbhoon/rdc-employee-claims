@@ -8,6 +8,7 @@ import { employeeExpenseTypes } from "@/lib/expenseTypes";
 import { ActionButton } from "@/components/ActionButton";
 import { ErrorNotice } from "@/components/ErrorNotice";
 import { EmployeeClaimLines } from "@/components/EmployeeClaimLines";
+import { ClaimCertification } from "@/components/ClaimCertification";
 
 const editableStatuses = [
   "DRAFT",
@@ -88,7 +89,8 @@ export default async function ClaimDetail({ params, searchParams }: { params: { 
                   amount: String(line.amount)
                 }))}
               />
-              <div className="flex gap-2"><button className="btn-secondary" name="action" value="draft">Save Draft</button><ActionButton name="action" value="submit" variant="primary" confirmMessage="Are you sure you want to submit this claim?">Submit Claim</ActionButton></div>
+              <ClaimCertification />
+              <div className="flex gap-2"><button className="btn-secondary" name="action" value="draft" formNoValidate>Save Draft</button><ActionButton name="action" value="submit" variant="primary" confirmMessage="Are you sure you want to submit this claim?">Submit Claim</ActionButton></div>
             </form>
           ) : (
             <div className="overflow-x-auto">
