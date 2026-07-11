@@ -43,6 +43,7 @@ export async function createOrUpdateClaim(formData: FormData) {
   const claimId = String(formData.get("id") || "");
   const errorPath = claimId ? `/claims/${claimId}` : "/claims/new";
   const action = String(formData.get("action") || "draft");
+  const certificationAccepted = formData.get("claimCertification") === "accepted";
   const amendmentRemarks = String(formData.get("amendmentRemarks") || "").trim();
   const lineIds = formData.getAll("lineId").map(String);
   const claimTypeIds = formData.getAll("claimTypeId").map(String);
@@ -80,6 +81,7 @@ export async function createOrUpdateClaim(formData: FormData) {
   if (claimId && !existing) actionError("/dashboard", "Claim edit: claim was not found.");
   if (existing && existing.employeeId !== user.employeeId) actionError(errorPath, "Claim edit: you can edit only your own claims.");
   if (existing && !editableStatuses.includes(existing.currentStatus)) actionError(errorPath, "Claim edit: this claim can no longer be edited.");
+  if (action === "submit" && !certificationAccepted) actionError(errorPath, "Claim certification: confirm the employee certification before submitting this claim.");
   if (action === "submit" && existing && isRejectedStatus(existing.currentStatus) && !amendmentRemarks) actionError(errorPath, "Claim amendment: amendment remarks are required before resubmitting a rejected claim.");
   const claimTypes = await prisma.claimType.findMany({ where: { id: { in: lines.map((l) => l.claimTypeId) } } });
   for (const line of lines) {
