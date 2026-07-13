@@ -88,21 +88,20 @@ If an employee master row uses the configured `SUPERADMIN_EMAIL`, the app keeps 
 2. On the Azure/Linux server, pull `prod`.
 3. Set `.env` values for PostgreSQL, `NEXTAUTH_SECRET`, `APP_URL`, `SUPERADMIN_EMAIL`, and `SUPERADMIN_PASSWORD`.
 4. Keep `RUN_DB_SEED=true` and `SEED_DEMO_USERS=false`.
-5. Deploy with Docker Compose:
+5. Deploy with the project deploy command:
 
 ```bash
-docker compose down
-docker compose up -d --build
+bash deploy.sh
 docker compose logs -f --tail=100
 ```
 
-The Docker entrypoint runs `prisma migrate deploy` first. With `RUN_DB_SEED=true`, it then recreates the superadmin and master claim setup without demo users.
+The deploy command rebuilds Docker Compose services and applies the checked-in Nginx upload-limit config before reloading Nginx. The Docker entrypoint runs `prisma migrate deploy` first. With `RUN_DB_SEED=true`, it then recreates the superadmin and master claim setup without demo users.
 
 ## Nginx Upload Limit
 
 If the app is behind Nginx, set Nginx `client_max_body_size` higher than `MAX_UPLOAD_SIZE_MB`; otherwise large uploads are rejected by Nginx with `413 Request Entity Too Large` before the Next.js app can validate them. The production example is in [`deploy/nginx/claims.rdcc.ai.conf`](./deploy/nginx/claims.rdcc.ai.conf) and uses `client_max_body_size 10M` for the app default `MAX_UPLOAD_SIZE_MB=5`.
 
-After changing Nginx on the server:
+The project deploy command applies this config automatically. To test or reload Nginx manually:
 
 ```bash
 sudo nginx -t
