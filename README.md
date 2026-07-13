@@ -92,6 +92,17 @@ If an employee master row uses the configured `SUPERADMIN_EMAIL`, the app keeps 
 7. Railway uses `railway:start`, which runs migrations and recreates the superadmin before starting Next.js.
 8. Test login with your `SUPERADMIN_EMAIL / SUPERADMIN_PASSWORD`.
 
+## Nginx Upload Limit
+
+If the app is behind Nginx, set Nginx `client_max_body_size` higher than `MAX_UPLOAD_SIZE_MB`; otherwise large uploads are rejected by Nginx with `413 Request Entity Too Large` before the Next.js app can validate them. The production example is in [`deploy/nginx/claims.rdcc.ai.conf`](./deploy/nginx/claims.rdcc.ai.conf) and uses `client_max_body_size 10M` for the app default `MAX_UPLOAD_SIZE_MB=5`.
+
+After changing Nginx on the server:
+
+```bash
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
 ## GitHub Push
 
 ```bash
