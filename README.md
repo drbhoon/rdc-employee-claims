@@ -98,6 +98,17 @@ docker compose logs -f --tail=100
 
 The Docker entrypoint runs `prisma migrate deploy` first. With `RUN_DB_SEED=true`, it then recreates the superadmin and master claim setup without demo users.
 
+## Nginx Upload Limit
+
+If the app is behind Nginx, set Nginx `client_max_body_size` higher than `MAX_UPLOAD_SIZE_MB`; otherwise large uploads are rejected by Nginx with `413 Request Entity Too Large` before the Next.js app can validate them. The production example is in [`deploy/nginx/claims.rdcc.ai.conf`](./deploy/nginx/claims.rdcc.ai.conf) and uses `client_max_body_size 10M` for the app default `MAX_UPLOAD_SIZE_MB=5`.
+
+After changing Nginx on the server:
+
+```bash
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
 ## GitHub Push
 
 ```bash
