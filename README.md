@@ -105,7 +105,9 @@ The deploy command rebuilds Docker Compose services and applies the checked-in N
 
 ## Nginx Upload Limit
 
-If the app is behind Nginx, set Nginx `client_max_body_size` higher than `MAX_UPLOAD_SIZE_MB`; otherwise large uploads are rejected by Nginx with `413 Request Entity Too Large` before the Next.js app can validate them. The production example is in [`deploy/nginx/claims.rdcc.ai.conf`](./deploy/nginx/claims.rdcc.ai.conf) and uses `client_max_body_size 10M` for the app default `MAX_UPLOAD_SIZE_MB=5`.
+If the app is behind Nginx, set Nginx `client_max_body_size` higher than `MAX_UPLOAD_SIZE_MB`; otherwise large uploads are rejected by Nginx with `413 Request Entity Too Large` before the Next.js app can validate them. The deploy command installs [`deploy/nginx/upload-limit.conf`](./deploy/nginx/upload-limit.conf), which applies `client_max_body_size 10M` globally to all Nginx server blocks, including HTTPS, for the app default `MAX_UPLOAD_SIZE_MB=5`.
+
+The same config maps Nginx `413` responses to `/upload-too-large.html`, which tells the user to compress the supporting document.
 
 The project deploy command applies this config automatically. To test or reload Nginx manually:
 

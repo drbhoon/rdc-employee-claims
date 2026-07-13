@@ -47,22 +47,41 @@ function initialRow(line: EmployeeClaimLineValue): ClaimLineRow {
 
 export function EmployeeClaimLines({
   claimTypes,
-  initialLines = []
+  initialLines = [],
+  maxUploadSizeMb = 5
 }: {
   claimTypes: ClaimTypeOption[];
   initialLines?: EmployeeClaimLineValue[];
+  maxUploadSizeMb?: number;
 }) {
   const [rows, setRows] = useState<ClaimLineRow[]>(() => (
     initialLines.length ? [...initialLines.map(initialRow), newRow()] : [newRow()]
   ));
+  const [fileError, setFileError] = useState("");
   const total = useMemo(() => rows.reduce((sum, row) => sum + (Number(row.amount) || 0), 0), [rows]);
 
   function updateRow(index: number, field: keyof Omit<ClaimLineRow, "key">, value: string) {
     setRows((current) => current.map((row, rowIndex) => (rowIndex === index ? { ...row, [field]: value } : row)));
   }
 
+  function validateFile(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.currentTarget.files?.[0];
+    if (!file) return;
+    if (file.size > maxUploadSizeMb * 1024 * 1024) {
+      setFileError(`Supporting document "${file.name}" is ${(file.size / 1024 / 1024).toFixed(2)} MB. Please compress it below ${maxUploadSizeMb} MB and upload again.`);
+      event.currentTarget.value = "";
+      return;
+    }
+    setFileError("");
+  }
+
   return (
     <div className="space-y-3">
+      {fileError && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {fileError}
+        </div>
+      )}
       <div className="flex justify-end">
         <div className="rounded-md border border-line bg-white px-4 py-3 text-right">
           <div className="text-xs font-semibold uppercase text-muted">Total Claim Amount</div>
@@ -96,7 +115,10 @@ export function EmployeeClaimLines({
                 </td>
                 <td><input name="description" placeholder="Short description" value={row.description} onChange={(event) => updateRow(index, "description", event.target.value)} /></td>
                 <td><input type="number" step="0.01" min="0" name="amount" placeholder="0.00" value={row.amount} onChange={(event) => updateRow(index, "amount", event.target.value)} /></td>
-                <td><input type="file" name="attachment" accept=".pdf,.jpg,.jpeg,.png" /></td>
+                <td>
+                  <input type="file" name="attachment" accept=".pdf,.jpg,.jpeg,.png" onChange={validateFile} />
+                  <div className="mt-1 text-xs text-muted">PDF/JPG/PNG up to {maxUploadSizeMb} MB</div>
+                </td>
                 <td className="text-center">
                   {rows.length > 1 && (
                     <button

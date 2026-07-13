@@ -46,6 +46,7 @@ export default async function ClaimDetail({ params, searchParams }: { params: { 
   const orderedClaimTypes = employeeExpenseTypes
     .map((name) => claimTypes.find((type) => type.name === name))
     .filter(Boolean) as typeof claimTypes;
+  const maxUploadSizeMb = Number(process.env.MAX_UPLOAD_SIZE_MB || 5);
   const rejectionReason = claim.history.find((h) => String(h.newStatus).includes("REJECTED"))?.comments;
 
   return (
@@ -81,6 +82,7 @@ export default async function ClaimDetail({ params, searchParams }: { params: { 
               )}
               <EmployeeClaimLines
                 claimTypes={orderedClaimTypes}
+                maxUploadSizeMb={maxUploadSizeMb}
                 initialLines={claim.lines.map((line) => ({
                   id: line.id,
                   claimDate: line.claimDate.toISOString().slice(0, 10),
