@@ -13,9 +13,11 @@ export async function POST(request: Request) {
   const claimLineId = String(form.get("claimLineId"));
   const file = form.get("file") as File | null;
   if (!file || !claimLineId) return NextResponse.json({ error: "Missing file" }, { status: 400 });
+  const line = await prisma.claimLine.findUnique({ where: { id: claimLineId } });
+  const claimPath = line?.claimHeaderId ? `/claims/${line.claimHeaderId}` : "/dashboard";
   const maxMb = Number(process.env.MAX_UPLOAD_SIZE_MB || 5);
-  if (!allowedFileTypes.includes(file.type)) return NextResponse.json({ error: "Only PDF, JPG, JPEG and PNG are allowed" }, { status: 400 });
-  if (file.size > maxMb * 1024 * 1024) return NextResponse.json({ error: `File exceeds ${maxMb}MB` }, { status: 400 });
+  if (!allowedFileTypes.includes(file.type)) return NextResponse.redirect(new URL(`${claimPath}?error=${encodeURIComponent("Supporting document upload: only PDF, JPG, JPEG and PNG files are allowed.")}`, request.url));
+  if (file.size > maxMb * 1024 * 1024) return NextResponse.redirect(new URL(`${claimPath}?error=${encodeURIComponent(`Supporting document upload: file is ${(file.size / 1024 / 1024).toFixed(2)} MB. Please compress it below ${maxMb} MB and upload again.`)}`, request.url));
   const ext = path.extname(file.name).toLowerCase();
   const stored = `${randomUUID()}${ext}`;
   const dir = path.join(process.cwd(), "uploads");
@@ -31,6 +33,5 @@ export async function POST(request: Request) {
       uploadedBy: user.employeeId
     }
   });
-  const line = await prisma.claimLine.findUnique({ where: { id: claimLineId } });
   return NextResponse.redirect(new URL(`/claims/${line?.claimHeaderId}`, request.url));
 }

@@ -27,6 +27,7 @@ export default async function NewClaimPage({ searchParams }: { searchParams: { e
   const orderedClaimTypes = employeeExpenseTypes
     .map((name) => claimTypes.find((type) => type.name === name))
     .filter(Boolean) as typeof claimTypes;
+  const maxUploadSizeMb = Number(process.env.MAX_UPLOAD_SIZE_MB || 5);
   return (
     <Shell title="New Claim">
       <ErrorNotice message={searchParams.error} />
@@ -45,7 +46,7 @@ export default async function NewClaimPage({ searchParams }: { searchParams: { e
           <div><span className="font-semibold">Cost Center:</span> {employee.costCenter || "-"}</div>
           <div><span className="font-semibold">Date:</span> {new Date().toLocaleDateString("en-IN")}</div>
         </div>
-        <EmployeeClaimLines claimTypes={orderedClaimTypes} />
+        <EmployeeClaimLines claimTypes={orderedClaimTypes} maxUploadSizeMb={maxUploadSizeMb} />
         <ClaimCertification />
         <div className="flex gap-2">
           <button className="btn-secondary" name="action" value="draft" formNoValidate>Save Draft</button>
