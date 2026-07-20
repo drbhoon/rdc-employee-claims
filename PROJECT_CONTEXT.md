@@ -45,7 +45,7 @@ When starting a fresh Codex chat, attach this file and instruct Codex to treat i
 
 ## Branch State At This Handoff
 
-Remote references checked directly from GitHub on 20 July 2026:
+Remote references checked directly from GitHub on 20 July 2026 before synchronization:
 
 - `origin/main`: `47632e4` - Fix upload limit handling and messaging
 - `origin/prod`: `c54bd40` - Fix upload limit handling and messaging
@@ -60,6 +60,18 @@ prod -> main -> Railway testing -> reviewed promotion to prod
 ```
 
 Never reverse this automatically. There must be no workflow that pushes or opens an automatic deployment into `prod` merely because `main` changed.
+
+Synchronization completed on 20 July 2026:
+
+- `prod` was merged into `main` with merge commit `ff8ffa5`.
+- GitHub `prod` remained unchanged at `c54bd40`.
+- The obsolete GitHub workflow that automatically created production PRs from `main` was removed by the merge.
+- Railway automatically deployed `main` commit `ff8ffa5` successfully.
+- Railway deployment ID: `4d2c0fe3-438d-4275-a60d-ea64923057f1`.
+- Railway applied migration `20260703000000_company_designation_cleanup` successfully.
+- Railway seed and Next.js startup completed successfully.
+- Public HTTP smoke tests passed for `/login`, `/forgot-password`, and `/upload-too-large.html`.
+- Full authenticated role testing remains pending because the Railway staging database currently has only the retained superadmin/workflow user; do not reset credentials merely to manufacture test users.
 
 ## Current Technology And Deployment
 
@@ -221,4 +233,3 @@ If the sidebar tree cannot be reorganized, start a new chat in the correct works
 Use this prompt with the attached file:
 
 > Read PROJECT_CONTEXT.md completely before taking any action. This is the RDC Employee Claims Management project and has no relationship to RDC BCA. Work on main/Railway only unless I explicitly authorize prod. Do not touch the Azure live database or prod branch without explicit approval.
-
