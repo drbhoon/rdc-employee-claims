@@ -1,5 +1,5 @@
 import { csvResponse } from "@/lib/csv";
-import { getSession } from "@/lib/auth";
+import { getSession, isSuperAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 function dateRange(from: string | null, to: string | null) {
@@ -11,7 +11,7 @@ function dateRange(from: string | null, to: string | null) {
 
 export async function GET(request: Request) {
   const user = await getSession();
-  if (!user || !["ACCOUNTS", "ADMIN"].includes(user.role)) return new Response("Unauthorized", { status: 401 });
+  if (!user || !isSuperAdmin(user)) return new Response("Only superadmin can download approved claims.", { status: 403 });
   const { searchParams } = new URL(request.url);
   const finalApprovedAt = dateRange(searchParams.get("from"), searchParams.get("to"));
   const claims = await prisma.claimHeader.findMany({

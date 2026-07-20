@@ -10,18 +10,22 @@ export default async function AccountsPage() {
     orderBy: { updatedAt: "desc" }
   });
   const groups = [
-    ["Pending Accounts Audit", ["SUBMITTED_TO_ACCOUNTS"]],
-    ["Returned by Accounts", ["RETURNED_BY_ACCOUNTS"]],
-    ["Passed by Accounts", ["PASSED_BY_ACCOUNTS", "PENDING_LEVEL_1_APPROVAL", "PENDING_LEVEL_2_APPROVAL", "PENDING_LEVEL_3_APPROVAL"]],
-    ["Final Approved", ["FINAL_APPROVED"]],
-    ["Payment Downloaded", ["PAYMENT_DOWNLOADED"]],
-    ["Paid", ["PAID"]]
+    ["Pending Accounts Audit", "Claims currently requiring action from Accounts.", ["SUBMITTED_TO_ACCOUNTS"]],
+    ["Under Approval / Tracking", "Claims passed by Accounts and currently awaiting RM or approver action. These are read-only for Accounts.", ["PASSED_BY_ACCOUNTS", "PENDING_LEVEL_1_APPROVAL", "PENDING_LEVEL_2_APPROVAL", "PENDING_LEVEL_3_APPROVAL"]],
+    ["Final Approved", "Claims that completed the approval workflow. No further Accounts action is required.", ["FINAL_APPROVED"]],
+    ["Returned by Accounts", "Claims returned to employees for correction.", ["RETURNED_BY_ACCOUNTS"]],
+    ["Rejected by Accounts", "Claims rejected during Accounts audit.", ["REJECTED_BY_ACCOUNTS"]]
   ] as const;
   return (
     <Shell title="Accounts Dashboard">
-      <div className="mb-4"><a className="btn" href="/api/reports/approved">Download Approved Claims CSV</a></div>
       <div className="space-y-6">
-        {groups.map(([title, statuses]) => <section key={title}><h2 className="mb-2 font-semibold">{title}</h2><ClaimTable claims={claims.filter((c) => statuses.includes(c.currentStatus as never))} /></section>)}
+        {groups.map(([title, description, statuses]) => (
+          <section key={title}>
+            <h2 className="font-semibold">{title}</h2>
+            <p className="mb-2 text-sm text-muted">{description}</p>
+            <ClaimTable claims={claims.filter((c) => statuses.includes(c.currentStatus as never))} />
+          </section>
+        ))}
       </div>
     </Shell>
   );

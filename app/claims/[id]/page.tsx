@@ -36,8 +36,6 @@ export default async function ClaimDetail({ params, searchParams }: { params: { 
   if (!canSee) notFound();
   const canEdit = claim.employeeId === user.employeeId && editableStatuses.includes(claim.currentStatus);
   const canAccountsAudit = ["ACCOUNTS", "ADMIN"].includes(user.role) && claim.currentStatus === "SUBMITTED_TO_ACCOUNTS";
-  const canMarkPaymentDownloaded = ["ACCOUNTS", "ADMIN"].includes(user.role) && claim.currentStatus === "FINAL_APPROVED";
-  const canMarkPaid = ["ACCOUNTS", "ADMIN"].includes(user.role) && claim.currentStatus === "PAYMENT_DOWNLOADED";
   const canApprove =
     (user.role === "APPROVER" || user.role === "ADMIN") &&
     (claim.currentPendingWith === user.employeeId || claim.currentPendingWith === user.email || user.role === "ADMIN") &&
@@ -112,7 +110,7 @@ export default async function ClaimDetail({ params, searchParams }: { params: { 
               </div>
             ))}
           </div>
-          {(canAccountsAudit || canMarkPaymentDownloaded || canMarkPaid) && (
+          {canAccountsAudit && (
             <form action={accountsAction} className="card space-y-2">
               <h2 className="font-semibold">Accounts Action</h2>
               <input type="hidden" name="id" value={claim.id} />
@@ -121,8 +119,6 @@ export default async function ClaimDetail({ params, searchParams }: { params: { 
                 {canAccountsAudit && <ActionButton name="action" value="pass" variant="primary">Pass to Approval</ActionButton>}
                 {canAccountsAudit && <ActionButton name="action" value="return">Return</ActionButton>}
                 {canAccountsAudit && <ActionButton name="action" value="reject">Reject</ActionButton>}
-                {canMarkPaymentDownloaded && <ActionButton name="action" value="downloaded">Mark Downloaded</ActionButton>}
-                {canMarkPaid && <ActionButton name="action" value="paid">Mark Paid</ActionButton>}
               </div>
             </form>
           )}

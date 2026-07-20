@@ -1,5 +1,5 @@
 import { Shell } from "@/components/Shell";
-import { requireUser } from "@/lib/auth";
+import { isSuperAdmin, requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { statusLabel } from "@/lib/workflow";
 import { ClaimStatus, Prisma } from "@prisma/client";
@@ -20,7 +20,8 @@ function latestRejectionReason(history: { newStatus: string; comments: string | 
 }
 
 export default async function ReportsPage({ searchParams }: { searchParams: { from?: string; to?: string } }) {
-  await requireUser(["ACCOUNTS", "ADMIN"]);
+  const user = await requireUser(["ACCOUNTS", "ADMIN"]);
+  const superAdmin = isSuperAdmin(user);
   const submittedAt = dateRange(searchParams.from, searchParams.to);
   const baseWhere: Prisma.ClaimHeaderWhereInput = submittedAt ? { submittedAt } : {};
   const approvedWhere: Prisma.ClaimHeaderWhereInput = {
@@ -57,7 +58,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: { fr
         <div className="flex items-end gap-2 md:col-span-2">
           <button className="btn">Apply Period</button>
           <a className="btn-secondary" href="/reports">Clear</a>
-          <a className="btn" href={csvHref}>Download Approved Claims CSV</a>
+          {superAdmin && <a className="btn" href={csvHref}>Download Approved Claims CSV</a>}
         </div>
       </form>
       <div className="grid gap-4 lg:grid-cols-2">

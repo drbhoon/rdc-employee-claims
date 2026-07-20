@@ -222,9 +222,8 @@ export async function accountsAction(formData: FormData) {
   const errorPath = `/claims/${id}`;
   const claim = await prisma.claimHeader.findUniqueOrThrow({ where: { id }, include: { employee: true } });
   if (user.role !== "ADMIN" && claim.employee.accountsEmail !== user.email) actionError(errorPath, "Accounts action: this claim is not mapped to your Accounts email.");
-  if (["pass", "return", "reject"].includes(action) && claim.currentStatus !== "SUBMITTED_TO_ACCOUNTS") actionError(errorPath, "Accounts action: claim is not pending Accounts audit.");
-  if (action === "downloaded" && claim.currentStatus !== "FINAL_APPROVED") actionError(errorPath, "Payment action: only final-approved claims can be marked downloaded.");
-  if (action === "paid" && claim.currentStatus !== "PAYMENT_DOWNLOADED") actionError(errorPath, "Payment action: only downloaded claims can be marked paid.");
+  if (!["pass", "return", "reject"].includes(action)) actionError(errorPath, "Accounts action: unsupported action.");
+  if (claim.currentStatus !== "SUBMITTED_TO_ACCOUNTS") actionError(errorPath, "Accounts action: claim is not pending Accounts audit.");
   let newStatus: ClaimStatus = claim.currentStatus;
   let comments: string | undefined;
   let pendingWith: string | null = claim.currentPendingWith;
@@ -246,21 +245,13 @@ export async function accountsAction(formData: FormData) {
       : "PENDING_LEVEL_1_APPROVAL";
     const level = newStatus === "PENDING_LEVEL_2_APPROVAL" ? 2 : requiredApprovalLevel(validation.rule);
     await prisma.claimHeader.update({ where: { id }, data: { approvalLevelRequired: level } });
-  } else if (action === "downloaded") {
-    newStatus = "PAYMENT_DOWNLOADED";
-    pendingWith = user.email;
-  } else if (action === "paid") {
-    newStatus = "PAID";
-    pendingWith = null;
   }
 
   const updated = await prisma.claimHeader.update({
     where: { id },
     data: {
       currentStatus: newStatus,
-      currentPendingWith: pendingWith,
-      paymentDownloadedAt: newStatus === "PAYMENT_DOWNLOADED" ? new Date() : claim.paymentDownloadedAt,
-      paidAt: newStatus === "PAID" ? new Date() : claim.paidAt
+      currentPendingWith: pendingWith
     }
   });
   await addHistory({ claimHeaderId: id, actor: user, action: `ACCOUNTS_${action.toUpperCase()}`, comments, previousStatus: claim.currentStatus, newStatus });
