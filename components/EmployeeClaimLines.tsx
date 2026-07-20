@@ -23,9 +23,14 @@ function today() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function rowKey() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 function newRow(): ClaimLineRow {
   return {
-    key: crypto.randomUUID(),
+    key: rowKey(),
     id: "",
     claimDate: today(),
     claimTypeId: "",
@@ -36,7 +41,7 @@ function newRow(): ClaimLineRow {
 
 function initialRow(line: EmployeeClaimLineValue): ClaimLineRow {
   return {
-    key: line.id || crypto.randomUUID(),
+    key: line.id || rowKey(),
     id: line.id || "",
     claimDate: line.claimDate || today(),
     claimTypeId: line.claimTypeId || "",

@@ -27,7 +27,7 @@ export async function validateApproverMapping(employeeId: string, totalAmount: n
   const rule = await findApprovalRule(totalAmount);
   if (!rule) return { ok: false, message: "No active approval rule exists for this claim amount." };
   if (!employee?.accountsEmail) return { ok: false, message: "Accounts email mapping is missing." };
-  if (rule.requiresLevel1 && !employee?.level1Email) return { ok: false, message: "Level 1 approver email mapping is missing." };
+  if (rule.requiresLevel1 && !employee?.level1Email && !employee?.level2Email) return { ok: false, message: "Level 1 or Level 2 approver email mapping is missing." };
   if (rule.requiresLevel2 && !employee?.level2Email) return { ok: false, message: "Level 2 approver email mapping is missing." };
   return { ok: true, rule, employee };
 }

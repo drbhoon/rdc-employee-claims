@@ -12,7 +12,8 @@ export type EmployeeUploadRow = {
   login_id?: string;
   password?: string;
   mobile?: string;
-  department?: string;
+  company?: string;
+  designation?: string;
   location?: string;
   plant?: string;
   cost_center?: string;
@@ -53,7 +54,7 @@ export function cleanEmail(value: unknown) {
 export function parseEmployeeUpload(buffer: Buffer) {
   const workbook = XLSX.read(buffer, { type: "buffer" });
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  return XLSX.utils.sheet_to_json<EmployeeUploadRow>(sheet, { defval: "" });
+  return XLSX.utils.sheet_to_json<EmployeeUploadRow>(sheet, { defval: "" }).filter(isMeaningfulUploadRow);
 }
 
 export function buildTemplateWorkbook() {
@@ -65,7 +66,8 @@ export function buildTemplateWorkbook() {
       login_id: "employee@example.com",
       password: "Welcome@123",
       mobile: "9999999999",
-      department: "Operations",
+      company: "RDC Concrete India Pvt Ltd",
+      designation: "Sales Executive",
       location: "Mumbai",
       plant: "Plant A",
       cost_center: "CC100",
@@ -81,13 +83,37 @@ export function buildTemplateWorkbook() {
       is_active: "true"
     },
     {
+      action: "UPDATE",
+      employee_id: "EMP002",
+      employee_name: "Sample Employee Updated",
+      login_id: "employee@example.com",
+      password: "",
+      mobile: "8888888888",
+      company: "RDC Concrete India Pvt Ltd",
+      designation: "Senior Sales Executive",
+      location: "Delhi",
+      plant: "Plant B",
+      cost_center: "CC200",
+      accounts_name: "Accounts Verifier",
+      accounts_email: "accounts@example.com",
+      rm_name: "New Reporting Manager",
+      rm_email: "new.rm@example.com",
+      level1_name: "",
+      level1_email: "",
+      level2_name: "New Level2 Approver",
+      level2_email: "new.level2@example.com",
+      role: "EMPLOYEE",
+      is_active: "true"
+    },
+    {
       action: "DELETE",
       employee_id: "EMP003",
       employee_name: "Old Employee",
       login_id: "old.employee@example.com",
       password: "",
       mobile: "",
-      department: "",
+      company: "",
+      designation: "",
       location: "",
       plant: "",
       cost_center: "",
@@ -123,6 +149,7 @@ export async function validateRows(rows: EmployeeUploadRow[]) {
   const errors: { rowNumber: number; employeeId?: string; errorMessage: string }[] = [];
   const valid: EmployeeUploadRow[] = [];
   const deleteIds: string[] = [];
+  const loginRows: { rowNumber: number; employeeId: string; loginId: string }[] = [];
 
   rows.forEach((row, idx) => {
     const rowNumber = idx + 2;
@@ -132,7 +159,9 @@ export async function validateRows(rows: EmployeeUploadRow[]) {
     const loginId = cleanEmail(row.login_id);
     const accountsEmail = cleanEmail(row.accounts_email);
     const rmEmail = cleanEmail(row.rm_email);
+    const level1Name = clean(row.level1_name);
     const level1Email = cleanEmail(row.level1_email);
+    const level2Name = clean(row.level2_name);
     const level2Email = cleanEmail(row.level2_email);
     const role = clean(row.role || "EMPLOYEE").toUpperCase();
 
@@ -146,10 +175,10 @@ export async function validateRows(rows: EmployeeUploadRow[]) {
     if (!accountsEmail) rowErrors.push("accounts_email is required");
     if (accountsEmail && !validEmail(accountsEmail)) rowErrors.push("accounts_email must be a valid email");
     if (rmEmail && !validEmail(rmEmail)) rowErrors.push("rm_email must be a valid email or '-'");
-    if (!clean(row.level1_name)) rowErrors.push("level1_name is required");
-    if (!level1Email) rowErrors.push("level1_email is required");
+    if ((level1Name || level1Email) && !level1Name) rowErrors.push("level1_name is required when level1_email is provided");
+    if ((level1Name || level1Email) && !level1Email) rowErrors.push("level1_email is required when level1_name is provided");
     if (level1Email && !validEmail(level1Email)) rowErrors.push("level1_email must be a valid email");
-    if (!clean(row.level2_name)) rowErrors.push("level2_name is required");
+    if (!level2Name) rowErrors.push("level2_name is required");
     if (!level2Email) rowErrors.push("level2_email is required");
     if (level2Email && !validEmail(level2Email)) rowErrors.push("level2_email must be a valid email");
     if (employeeId && seenEmployees.has(employeeId)) rowErrors.push("duplicate employee_id in file");
@@ -159,6 +188,7 @@ export async function validateRows(rows: EmployeeUploadRow[]) {
     if (employeeId) seenEmployees.add(employeeId);
     if (loginId) seenLoginIds.add(loginId);
     if (action === "DELETE" && employeeId) deleteIds.push(employeeId);
+    if (employeeId && loginId && action !== "DELETE") loginRows.push({ rowNumber, employeeId, loginId });
 
     if (rowErrors.length) errors.push({ rowNumber, employeeId, errorMessage: rowErrors.join("; ") });
     else valid.push(row);
@@ -190,9 +220,40 @@ export async function validateRows(rows: EmployeeUploadRow[]) {
     });
   }
 
+  if (loginRows.length) {
+    const existingLoginUsers = await prisma.user.findMany({
+      where: { email: { in: loginRows.map((row) => row.loginId) } },
+      select: { employeeId: true, email: true }
+    });
+    const ownerByEmail = new Map(existingLoginUsers.map((user) => [user.email?.toLowerCase(), user.employeeId]));
+    loginRows.forEach((row) => {
+      const ownerEmployeeId = ownerByEmail.get(row.loginId);
+      if (
+        ownerEmployeeId &&
+        ownerEmployeeId !== row.employeeId &&
+        ownerEmployeeId !== "SUPERADMIN" &&
+        !isWorkflowPlaceholderEmployeeId(ownerEmployeeId)
+      ) {
+        errors.push({
+          rowNumber: row.rowNumber,
+          employeeId: row.employeeId,
+          errorMessage: `login_id already belongs to employee_id ${ownerEmployeeId}.`
+        });
+      }
+    });
+  }
+
   const blocked = new Set(errors.map((error) => `${error.rowNumber}:${error.employeeId || ""}`));
   return {
     valid: valid.filter((row) => !blocked.has(`${rows.indexOf(row) + 2}:${clean(row.employee_id)}`)),
     errors
   };
+}
+
+export function isWorkflowPlaceholderEmployeeId(employeeId: string) {
+  return employeeId.startsWith("APPROVER-") || employeeId.startsWith("ACCOUNTS-");
+}
+
+function isMeaningfulUploadRow(row: EmployeeUploadRow) {
+  return uploadColumns.some((column) => clean(row[column as keyof EmployeeUploadRow]).length > 0);
 }

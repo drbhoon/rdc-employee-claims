@@ -21,26 +21,36 @@ export function EmployeeUploadPanel() {
     if (!file) return;
     setBusy(true);
     setMessage("");
+    if (path.includes("preview")) setPreview(null);
     const body = new FormData();
     body.append("file", file);
     body.append("defaultPassword", defaultPassword);
-    const res = await fetch(path, { method: "POST", body });
-    const json = await res.json();
-    setBusy(false);
-    if (!res.ok) {
-      setMessage(json.error || "Upload failed");
-      if (json.errors) setPreview({ batchId: "", totalRows: 0, validRows: 0, errorRows: json.errors.length, errors: json.errors });
-      return;
+    try {
+      const res = await fetch(path, { method: "POST", body });
+      const json = await res.json().catch(() => ({ error: "Upload failed. Server returned an unreadable response." }));
+      if (!res.ok) {
+        setMessage(json.error || "Upload failed");
+        if (json.errors) setPreview({ batchId: "", totalRows: 0, validRows: 0, errorRows: json.errors.length, errors: json.errors });
+        return;
+      }
+      if (path.includes("preview")) {
+        setPreview(json);
+        setMessage(json.errorRows > 0 ? `Validation failed: ${json.errorRows} row error(s). See details below.` : `Validation passed: ${json.validRows} valid record(s).`);
+      } else {
+        setMessage(`Imported ${json.importedRows} employees.`);
+      }
+    } catch {
+      setMessage("Upload failed. Please try again or check the server logs.");
+    } finally {
+      setBusy(false);
     }
-    if (path.includes("preview")) setPreview(json);
-    else setMessage(`Imported ${json.importedRows} employees.`);
   }
 
   return (
     <div className="space-y-3">
       <div><a className="btn-secondary" href="/api/employee-upload/template">Download Template</a></div>
       <div><label>Default Password For New Employees</label><input value={defaultPassword} onChange={(e) => setDefaultPassword(e.target.value)} placeholder="Welcome@123" /></div>
-      <div><label>Excel/CSV File</label><input type="file" accept=".xlsx,.xls,.csv" onChange={(e) => setFile(e.target.files?.[0] || null)} /></div>
+      <div><label>Excel/CSV File</label><input type="file" accept=".xlsx,.xls,.csv" onChange={(e) => { setFile(e.target.files?.[0] || null); setPreview(null); setMessage(""); }} /></div>
       <div className="flex gap-2">
         <button type="button" className="btn-secondary" disabled={!file || busy} onClick={() => postUpload("/api/employee-upload/preview")}>Validate Preview</button>
         <button type="button" className="btn" disabled={!file || busy || !preview || preview.errorRows > 0} onClick={() => postUpload("/api/employee-upload/import")}>Import Valid Records</button>

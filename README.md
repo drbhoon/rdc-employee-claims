@@ -59,6 +59,7 @@ Optional for email and uploads:
 - `SMTP_FROM` (use `noreply@rdc.in` in Railway)
 - `DEFAULT_EMPLOYEE_PASSWORD`
 - `MAX_UPLOAD_SIZE_MB`
+- `RUN_DB_SEED` (keep `true` so migrations recreate superadmin and master data)
 - `SEED_DEMO_USERS` (keep `false` in production)
 
 ## Prisma Commands
@@ -81,16 +82,33 @@ Superadmin authority is attached to the configured superadmin email ID. This all
 
 If an employee master row uses the configured `SUPERADMIN_EMAIL`, the app keeps that employee record and gives it superadmin rights. If the database is empty, startup creates a fallback `SUPERADMIN` login with that email. The Admin dashboard has a button to send the superadmin password reset link by email. Only this login can download, validate, import, add, update, or delete employee master records. Demo users are no longer seeded unless `SEED_DEMO_USERS=true`.
 
-## Railway Deployment
+## Docker / Azure Server Deployment
 
-1. Push this repository to GitHub.
-2. Create a new Railway project.
-3. Connect the GitHub repository.
-4. Add a Railway PostgreSQL service.
-5. Set environment variables in the web service, especially `DATABASE_URL`, `NEXTAUTH_SECRET`, `APP_URL`, and SMTP settings if email is required.
-6. Deploy the app.
-7. Railway uses `railway:start`, which runs migrations and recreates the superadmin before starting Next.js.
-8. Test login with your `SUPERADMIN_EMAIL / SUPERADMIN_PASSWORD`.
+1. Push the `prod` branch to GitHub.
+2. On the Azure/Linux server, pull `prod`.
+3. Set `.env` values for PostgreSQL, `NEXTAUTH_SECRET`, `APP_URL`, `SUPERADMIN_EMAIL`, and `SUPERADMIN_PASSWORD`.
+4. Keep `RUN_DB_SEED=true` and `SEED_DEMO_USERS=false`.
+5. Deploy with the project deploy command:
+
+```bash
+bash deploy.sh
+docker compose logs -f --tail=100
+```
+
+The deploy command rebuilds Docker Compose services and applies the checked-in Nginx upload-limit config before reloading Nginx. The Docker entrypoint runs `prisma migrate deploy` first. With `RUN_DB_SEED=true`, it then recreates the superadmin and master claim setup without demo users.
+
+## Nginx Upload Limit
+
+If the app is behind Nginx, set Nginx `client_max_body_size` higher than `MAX_UPLOAD_SIZE_MB`; otherwise large uploads are rejected by Nginx with `413 Request Entity Too Large` before the Next.js app can validate them. The deploy command installs [`deploy/nginx/upload-limit.conf`](./deploy/nginx/upload-limit.conf), which applies `client_max_body_size 10M` globally to all Nginx server blocks, including HTTPS, for the app default `MAX_UPLOAD_SIZE_MB=5`.
+
+The same config maps Nginx `413` responses to `/upload-too-large.html`, which tells the user to compress the supporting document.
+
+The project deploy command applies this config automatically. To test or reload Nginx manually:
+
+```bash
+sudo nginx -t
+sudo systemctl reload nginx
+```
 
 ## Docker / Azure Server Deployment
 
@@ -131,9 +149,9 @@ git push -u origin main
 
 Admin can download the template from the Admin dashboard. Upload columns:
 
-`action`, `employee_id`, `employee_name`, `login_id`, `password`, `mobile`, `department`, `location`, `plant`, `cost_center`, `accounts_name`, `accounts_email`, `rm_name`, `rm_email`, `level1_name`, `level1_email`, `level2_name`, `level2_email`, `role`, `is_active`
+`action`, `employee_id`, `employee_name`, `login_id`, `password`, `mobile`, `company`, `designation`, `location`, `plant`, `cost_center`, `accounts_name`, `accounts_email`, `rm_name`, `rm_email`, `level1_name`, `level1_email`, `level2_name`, `level2_email`, `role`, `is_active`
 
-Actions allowed: `ADD`, `UPDATE`, `DELETE`. Accounts, Level1, and Level2 are mandatory. RM is optional; when present, RM receives the claim after Accounts as a recommending authority before Level1. DELETE rows are blocked when the employee has open claims.
+Actions allowed: `ADD`, `UPDATE`, `DELETE`. Accounts and Level2 are mandatory. Level1 is optional; when blank, the claim goes to Level2 directly. RM is optional; when present, RM receives the claim after Accounts as a recommending authority before Level1 or Level2. DELETE rows are blocked when the employee has open claims.
 
 For new employees, the login ID is the uploaded `login_id` email. If the row has a `password`, that password is imported. Otherwise the app uses the upload screen default password, then `DEFAULT_EMPLOYEE_PASSWORD`, then `Welcome@123`.
 

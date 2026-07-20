@@ -10,7 +10,17 @@ import { ClaimCertification } from "@/components/ClaimCertification";
 
 export default async function NewClaimPage({ searchParams }: { searchParams: { error?: string } }) {
   const user = await requireUser();
-  const employee = await prisma.user.findUniqueOrThrow({ where: { employeeId: user.employeeId } });
+  const employee = await prisma.user.findUnique({
+    where: { employeeId: user.employeeId },
+    select: {
+      employeeId: true,
+      name: true,
+      company: true,
+      designation: true,
+      costCenter: true,
+      isActive: true
+    }
+  });
   const claimTypes = await prisma.claimType.findMany({
     where: { isActive: true, name: { in: employeeExpenseTypes } }
   });
@@ -21,10 +31,18 @@ export default async function NewClaimPage({ searchParams }: { searchParams: { e
   return (
     <Shell title="New Claim">
       <ErrorNotice message={searchParams.error} />
+      {!employee?.isActive && (
+        <ErrorNotice message="Your employee master record is missing or inactive. Please contact Admin before creating a claim." />
+      )}
+      {employee?.isActive && !orderedClaimTypes.length && (
+        <ErrorNotice message="No active employee expense types are configured. Please ask Admin to run seed or activate claim types." />
+      )}
+      {employee?.isActive && orderedClaimTypes.length > 0 && (
       <form action={createOrUpdateClaim} encType="multipart/form-data" className="space-y-4">
         <div className="card flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
           <div><span className="font-semibold">Employee:</span> {employee.employeeId} - {employee.name}</div>
-          <div><span className="font-semibold">Department:</span> {employee.department || "-"}</div>
+          <div><span className="font-semibold">Company:</span> {employee.company || "-"}</div>
+          <div><span className="font-semibold">Designation:</span> {employee.designation || "-"}</div>
           <div><span className="font-semibold">Cost Center:</span> {employee.costCenter || "-"}</div>
           <div><span className="font-semibold">Date:</span> {new Date().toLocaleDateString("en-IN")}</div>
         </div>
@@ -35,6 +53,7 @@ export default async function NewClaimPage({ searchParams }: { searchParams: { e
           <ActionButton name="action" value="submit" variant="primary" confirmMessage="Are you sure you want to submit this claim?">Submit Claim</ActionButton>
         </div>
       </form>
+      )}
     </Shell>
   );
 }
