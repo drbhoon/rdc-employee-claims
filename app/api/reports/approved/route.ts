@@ -11,15 +11,23 @@ function dateRange(from: string | null, to: string | null) {
 
 export async function GET(request: Request) {
   const user = await getSession();
-  if (!user || !isSuperAdmin(user)) return new Response("Only superadmin can download approved claims.", { status: 403 });
+  if (!user || !["ACCOUNTS", "ADMIN"].includes(user.role)) return new Response("Unauthorized", { status: 401 });
+  const superAdmin = isSuperAdmin(user);
   const { searchParams } = new URL(request.url);
+  const from = searchParams.get("from");
+  const to = searchParams.get("to");
+  if (from && to && from > to) return new Response("From date cannot be after To date.", { status: 400 });
   const finalApprovedAt = dateRange(searchParams.get("from"), searchParams.get("to"));
   const claims = await prisma.claimHeader.findMany({
     where: {
       currentStatus: { in: ["FINAL_APPROVED", "PAYMENT_DOWNLOADED", "PAID"] },
-      ...(finalApprovedAt ? { finalApprovedAt } : {})
+      ...(finalApprovedAt ? { finalApprovedAt } : {}),
+      ...(!superAdmin ? { history: { some: { action: "ACCOUNTS_PASS", actionByEmployeeId: user.employeeId } } } : {})
     },
-    include: { lines: { include: { claimType: true } } },
+    include: {
+      lines: { include: { claimType: true } },
+      history: { where: { action: "ACCOUNTS_PASS" }, orderBy: { actionDate: "desc" }, take: 1 }
+    },
     orderBy: { finalApprovedAt: "desc" }
   });
   const rows: Record<string, unknown>[] = claims.flatMap((claim) => claim.lines.map((line) => ({
@@ -39,6 +47,8 @@ export async function GET(request: Request) {
     "GST Amount": line.gstAmount ? String(line.gstAmount) : "",
     "Vendor Name": line.vendorName,
     "Bill Number": line.billNumber,
+    "Accounts Cleared By": claim.history[0]?.actionByName || "",
+    "Accounts Cleared Date": claim.history[0]?.actionDate.toISOString().slice(0, 10) || "",
     "Approval Date": claim.finalApprovedAt?.toISOString().slice(0, 10),
     "Final Status": claim.currentStatus
   })));
@@ -49,7 +59,8 @@ export async function GET(request: Request) {
   });
   summary.forEach((amount, key) => {
     const [cc, type, glCode] = key.split("|");
-    rows.push({ "Claim ID": "SUMMARY", "Employee ID": "", "Employee Name": "", Company: "", Designation: "", Location: "", Plant: "", "Cost Center": cc, "Claim Type": type, "GL Code": glCode, "Claim Date": "", Description: "Cost-wise summary", Amount: amount.toFixed(2), "GST Amount": "", "Vendor Name": "", "Bill Number": "", "Approval Date": "", "Final Status": "" });
+    rows.push({ "Claim ID": "SUMMARY", "Employee ID": "", "Employee Name": "", Company: "", Designation: "", Location: "", Plant: "", "Cost Center": cc, "Claim Type": type, "GL Code": glCode, "Claim Date": "", Description: "Cost-wise summary", Amount: amount.toFixed(2), "GST Amount": "", "Vendor Name": "", "Bill Number": "", "Accounts Cleared By": "", "Accounts Cleared Date": "", "Approval Date": "", "Final Status": "" });
   });
-  return csvResponse("approved-claims.csv", rows);
+  const period = from || to ? `-${from || "start"}-to-${to || "latest"}` : "";
+  return csvResponse(`approved-claims${period}.csv`, rows);
 }

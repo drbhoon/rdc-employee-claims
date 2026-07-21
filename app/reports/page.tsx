@@ -58,8 +58,9 @@ export default async function ReportsPage({ searchParams }: { searchParams: { fr
         <div className="flex items-end gap-2 md:col-span-2">
           <button className="btn">Apply Period</button>
           <a className="btn-secondary" href="/reports">Clear</a>
-          {superAdmin && <a className="btn" href={csvHref}>Download Approved Claims CSV</a>}
+          <a className="btn" href={csvHref}>{superAdmin ? "Download All Approved Claims CSV" : "Download My Cleared Approved Claims CSV"}</a>
         </div>
+        <p className="text-xs text-muted md:col-span-4">The approved-claims download uses the final approval date. Accounts downloads include only claims cleared by the logged-in Accounts user.</p>
       </form>
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="card"><h2 className="mb-3 font-semibold">Claim Status Report</h2><table><thead><tr><th>Status</th><th>Count</th></tr></thead><tbody>{byStatus.map((r) => <tr key={r.currentStatus}><td>{statusLabel(r.currentStatus)}</td><td>{r._count}</td></tr>)}</tbody></table></section>
