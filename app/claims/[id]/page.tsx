@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { accountsAction, approverAction, createOrUpdateClaim } from "@/lib/actions";
-import { requireUser } from "@/lib/auth";
+import { hasApproverAccess, requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Shell } from "@/components/Shell";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -26,19 +26,21 @@ export default async function ClaimDetail({ params, searchParams }: { params: { 
     include: { employee: true, lines: { include: { claimType: true, attachments: true } }, history: { orderBy: { actionDate: "desc" } } }
   });
   if (!claim) notFound();
+  const pendingWith = claim.currentPendingWith?.toLowerCase();
+  const pendingWithUser = pendingWith === user.employeeId.toLowerCase() || pendingWith === user.email?.toLowerCase();
+  const approverAccess = await hasApproverAccess(user);
   const canSee =
     user.role === "ADMIN" ||
     (user.role === "ACCOUNTS" && claim.employee.accountsEmail === user.email) ||
     claim.employeeId === user.employeeId ||
-    claim.currentPendingWith === user.employeeId ||
-    claim.currentPendingWith === user.email ||
+    pendingWithUser ||
     claim.history.some((h) => h.actionByEmployeeId === user.employeeId);
   if (!canSee) notFound();
   const canEdit = claim.employeeId === user.employeeId && editableStatuses.includes(claim.currentStatus);
   const canAccountsAudit = ["ACCOUNTS", "ADMIN"].includes(user.role) && claim.currentStatus === "SUBMITTED_TO_ACCOUNTS";
   const canApprove =
-    (user.role === "APPROVER" || user.role === "ADMIN") &&
-    (claim.currentPendingWith === user.employeeId || claim.currentPendingWith === user.email || user.role === "ADMIN") &&
+    approverAccess &&
+    (pendingWithUser || user.role === "ADMIN") &&
     ["PENDING_LEVEL_1_APPROVAL", "PENDING_LEVEL_2_APPROVAL"].includes(claim.currentStatus);
   const claimTypes = await prisma.claimType.findMany({ where: { isActive: true, name: { in: employeeExpenseTypes } } });
   const orderedClaimTypes = employeeExpenseTypes
@@ -57,6 +59,10 @@ export default async function ClaimDetail({ params, searchParams }: { params: { 
       )}
       <div className="grid gap-4 lg:grid-cols-3">
         <section className="card lg:col-span-2">
+          <div className="mb-4 border-b border-line pb-4">
+            <label>Employee Name</label>
+            <div className="mt-1 text-xl font-bold text-ink">{claim.employeeName}</div>
+          </div>
           <div className="mb-4 grid gap-3 md:grid-cols-4">
             <div><label>Status</label><div className="mt-2"><StatusBadge status={claim.currentStatus} /></div></div>
             <div><label>Total</label><div className="mt-2 font-bold">INR {String(claim.totalAmount)}</div></div>

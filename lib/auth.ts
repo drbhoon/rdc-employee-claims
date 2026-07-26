@@ -75,6 +75,42 @@ export async function requireUser(roles?: Role[]) {
   return user;
 }
 
+export async function hasApproverAccess(user: Pick<SessionUser, "employeeId" | "email" | "role">) {
+  if (user.role === "APPROVER" || user.role === "ADMIN") return true;
+  const identifiers = [user.email?.trim(), user.employeeId.trim()].filter(Boolean) as string[];
+  const email = user.email?.trim().toLowerCase();
+  if (!identifiers.length) return false;
+
+  const [mappedEmployee, pendingClaim] = await Promise.all([
+    email
+      ? prisma.user.findFirst({
+          where: {
+            OR: [
+              { rmEmail: { equals: email, mode: "insensitive" } },
+              { level1Email: { equals: email, mode: "insensitive" } },
+              { level2Email: { equals: email, mode: "insensitive" } }
+            ]
+          },
+          select: { id: true }
+        })
+      : null,
+    prisma.claimHeader.findFirst({
+      where: {
+        currentStatus: { in: ["PENDING_LEVEL_1_APPROVAL", "PENDING_LEVEL_2_APPROVAL", "PENDING_LEVEL_3_APPROVAL"] },
+        OR: identifiers.map((identifier) => ({ currentPendingWith: { equals: identifier, mode: "insensitive" as const } }))
+      },
+      select: { id: true }
+    })
+  ]);
+  return Boolean(mappedEmployee || pendingClaim);
+}
+
+export async function requireApprover() {
+  const user = await requireUser();
+  if (!(await hasApproverAccess(user))) redirect("/dashboard");
+  return user;
+}
+
 export function canManageAll(role: Role) {
   return role === "ADMIN" || role === "ACCOUNTS";
 }

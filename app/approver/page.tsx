@@ -1,6 +1,6 @@
 import { ClaimTable } from "@/components/ClaimTable";
 import { Shell } from "@/components/Shell";
-import { requireUser } from "@/lib/auth";
+import { requireApprover } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ClaimStatus } from "@prisma/client";
 
@@ -32,12 +32,12 @@ function latestUniqueClaims(
 }
 
 export default async function ApproverPage() {
-  const user = await requireUser(["APPROVER", "ADMIN"]);
+  const user = await requireApprover();
   const userApproverIds = [user.email || "", user.employeeId].filter(Boolean);
   const pendingStatuses: ClaimStatus[] = ["PENDING_LEVEL_1_APPROVAL", "PENDING_LEVEL_2_APPROVAL"];
   const pending = await prisma.claimHeader.findMany({
     where: {
-      currentPendingWith: { in: userApproverIds },
+      OR: userApproverIds.map((identifier) => ({ currentPendingWith: { equals: identifier, mode: "insensitive" } })),
       currentStatus: { in: pendingStatuses }
     },
     orderBy: { updatedAt: "desc" },
