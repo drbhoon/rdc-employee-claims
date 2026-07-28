@@ -15,7 +15,7 @@ export function UserPermissionPanel({ users }: { users: PermissionUser[] }) {
   const [query, setQuery] = useState("");
   const matches = useMemo(() => {
     const text = query.trim().toLowerCase();
-    if (!text) return users.filter((user) => user.canDownloadNationalReports || user.canUploadPayments);
+    if (!text) return users.slice(0, 20);
     return users.filter((user) => `${user.employeeId} ${user.name} ${user.email || ""}`.toLowerCase().includes(text)).slice(0, 20);
   }, [query, users]);
 
