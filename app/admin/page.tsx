@@ -30,9 +30,9 @@ export default async function AdminPage({ searchParams }: { searchParams: { erro
           <div className="mt-4 overflow-x-auto"><table><thead><tr><th>File</th><th>Total</th><th>Valid</th><th>Errors</th><th>Imported</th><th>Status</th></tr></thead><tbody>{batches.map((b) => <tr key={b.id}><td>{b.fileName}</td><td>{b.totalRows}</td><td>{b.validRows}</td><td>{b.errorRows}</td><td>{b.importedRows}</td><td>{b.status}</td></tr>)}</tbody></table></div>
         </section>
       </div>
-      <section className="card mt-4">
+      <section id="delegated-rights" className="card mt-4 scroll-mt-4">
         <h2 className="mb-3 font-semibold">Delegated Report and Payment Rights</h2>
-        <UserPermissionPanel users={permissionUsers} />
+        <UserPermissionPanel users={permissionUsers} message={searchParams.message} />
       </section>
       <section className="card mt-4">
         <h2 className="mb-3 font-semibold">Email Test</h2>

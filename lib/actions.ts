@@ -392,7 +392,7 @@ export async function updateUserPermissions(formData: FormData) {
     }
   });
   revalidatePath("/admin");
-  redirect(`/admin?message=${encodeURIComponent(`Permissions updated for ${target.name}.`)}`);
+  redirect(`/admin?message=${encodeURIComponent(`Permissions updated for ${target.name}.`)}#delegated-rights`);
 }
 
 export async function deleteClaimType(formData: FormData) {
