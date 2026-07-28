@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 type ClaimTypeOption = {
   id: string;
   name: string;
+  glCode?: string | null;
 };
 
 export type EmployeeClaimLineValue = {
@@ -115,7 +116,7 @@ export function EmployeeClaimLines({
                 <td>
                   <select name="claimTypeId" value={row.claimTypeId} onChange={(event) => updateRow(index, "claimTypeId", event.target.value)}>
                     <option value="">Select expense</option>
-                    {claimTypes.map((type) => <option key={type.id} value={type.id}>{type.name}</option>)}
+                    {claimTypes.map((type) => <option key={type.id} value={type.id}>{type.name}{type.glCode ? ` (${type.glCode})` : ""}</option>)}
                   </select>
                 </td>
                 <td><input name="description" placeholder="Short description" value={row.description} onChange={(event) => updateRow(index, "description", event.target.value)} /></td>

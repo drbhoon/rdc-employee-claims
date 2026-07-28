@@ -348,18 +348,34 @@ export async function approverAction(formData: FormData) {
 export async function saveClaimType(formData: FormData) {
   await requireSuperAdmin();
   const id = String(formData.get("id") || "");
+  const name = String(formData.get("name") || "").trim();
+  const glCode = String(formData.get("glCode") || "").trim();
+  if (!name) actionError("/admin", "Claim Type Master: name is required.");
+  if (!glCode) actionError("/admin", "Claim Type Master: GL code is required.");
+  const duplicate = await prisma.claimType.findFirst({
+    where: { name: { equals: name, mode: "insensitive" }, ...(id ? { id: { not: id } } : {}) },
+    select: { id: true }
+  });
+  if (duplicate) actionError("/admin", `Claim Type Master: ${name} already exists. Delete or rename the existing entry before adding another.`);
   const data = {
-    name: String(formData.get("name")),
+    name,
     attachmentRequired: formData.get("attachmentRequired") === "on",
     maxAmountPerLine: formData.get("maxAmountPerLine") ? money(formData.get("maxAmountPerLine")) : null,
     monthlyLimit: formData.get("monthlyLimit") ? money(formData.get("monthlyLimit")) : null,
     costHead: String(formData.get("costHead") || ""),
-    glCode: String(formData.get("glCode") || ""),
+    glCode,
     isActive: formData.get("isActive") === "on"
   };
-  if (id) await prisma.claimType.update({ where: { id }, data });
-  else await prisma.claimType.create({ data });
+  try {
+    if (id) await prisma.claimType.update({ where: { id }, data });
+    else await prisma.claimType.create({ data });
+  } catch (error) {
+    console.error("Claim Type Master save failed", { id: id || undefined, name, glCode, error });
+    actionError("/admin", "Claim Type Master: unable to save this GL code. Please verify the values and try again.");
+  }
   revalidatePath("/admin");
+  revalidatePath("/claims/new");
+  redirect(`/admin?message=${encodeURIComponent(`${name} (${glCode}) was added to the claim dropdown.`)}`);
 }
 
 export async function deleteClaimType(formData: FormData) {

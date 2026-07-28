@@ -7,7 +7,7 @@ import { ResetDatabasePanel } from "@/components/ResetDatabasePanel";
 import { SuperadminPasswordResetPanel } from "@/components/SuperadminPasswordResetPanel";
 import { deleteClaimType, saveClaimType } from "@/lib/actions";
 
-export default async function AdminPage({ searchParams }: { searchParams: { error?: string } }) {
+export default async function AdminPage({ searchParams }: { searchParams: { error?: string; message?: string } }) {
   const user = await requireSuperAdmin();
   const [claimTypes, batches] = await Promise.all([
     prisma.claimType.findMany({ where: { isActive: true }, orderBy: { name: "asc" } }),
@@ -16,6 +16,7 @@ export default async function AdminPage({ searchParams }: { searchParams: { erro
   return (
     <Shell title="Admin Dashboard">
       {searchParams.error && <div className="mb-4 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">{searchParams.error}</div>}
+      {searchParams.message && <div className="mb-4 rounded border border-green-200 bg-green-50 p-3 text-sm text-green-700">{searchParams.message}</div>}
       <div className="grid gap-4">
         <section className="card">
           <h2 className="mb-3 font-semibold">Employee Master Upload</h2>

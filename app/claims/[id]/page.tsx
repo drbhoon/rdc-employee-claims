@@ -4,7 +4,6 @@ import { hasApproverAccess, requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Shell } from "@/components/Shell";
 import { StatusBadge } from "@/components/StatusBadge";
-import { employeeExpenseTypes } from "@/lib/expenseTypes";
 import { ActionButton } from "@/components/ActionButton";
 import { ErrorNotice } from "@/components/ErrorNotice";
 import { EmployeeClaimLines } from "@/components/EmployeeClaimLines";
@@ -42,10 +41,7 @@ export default async function ClaimDetail({ params, searchParams }: { params: { 
     approverAccess &&
     (pendingWithUser || user.role === "ADMIN") &&
     ["PENDING_LEVEL_1_APPROVAL", "PENDING_LEVEL_2_APPROVAL"].includes(claim.currentStatus);
-  const claimTypes = await prisma.claimType.findMany({ where: { isActive: true, name: { in: employeeExpenseTypes } } });
-  const orderedClaimTypes = employeeExpenseTypes
-    .map((name) => claimTypes.find((type) => type.name === name))
-    .filter(Boolean) as typeof claimTypes;
+  const claimTypes = await prisma.claimType.findMany({ where: { isActive: true }, orderBy: { name: "asc" } });
   const maxUploadSizeMb = Number(process.env.MAX_UPLOAD_SIZE_MB || 5);
   const rejectionReason = claim.history.find((h) => String(h.newStatus).includes("REJECTED"))?.comments;
 
@@ -85,7 +81,7 @@ export default async function ClaimDetail({ params, searchParams }: { params: { 
                 </div>
               )}
               <EmployeeClaimLines
-                claimTypes={orderedClaimTypes}
+                claimTypes={claimTypes}
                 maxUploadSizeMb={maxUploadSizeMb}
                 initialLines={claim.lines.map((line) => ({
                   id: line.id,

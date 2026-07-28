@@ -2,7 +2,6 @@ import { Shell } from "@/components/Shell";
 import { createOrUpdateClaim } from "@/lib/actions";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { employeeExpenseTypes } from "@/lib/expenseTypes";
 import { EmployeeClaimLines } from "@/components/EmployeeClaimLines";
 import { ActionButton } from "@/components/ActionButton";
 import { ErrorNotice } from "@/components/ErrorNotice";
@@ -22,11 +21,9 @@ export default async function NewClaimPage({ searchParams }: { searchParams: { e
     }
   });
   const claimTypes = await prisma.claimType.findMany({
-    where: { isActive: true, name: { in: employeeExpenseTypes } }
+    where: { isActive: true },
+    orderBy: { name: "asc" }
   });
-  const orderedClaimTypes = employeeExpenseTypes
-    .map((name) => claimTypes.find((type) => type.name === name))
-    .filter(Boolean) as typeof claimTypes;
   const maxUploadSizeMb = Number(process.env.MAX_UPLOAD_SIZE_MB || 5);
   return (
     <Shell title="New Claim">
@@ -34,10 +31,10 @@ export default async function NewClaimPage({ searchParams }: { searchParams: { e
       {!employee?.isActive && (
         <ErrorNotice message="Your employee master record is missing or inactive. Please contact Admin before creating a claim." />
       )}
-      {employee?.isActive && !orderedClaimTypes.length && (
+      {employee?.isActive && !claimTypes.length && (
         <ErrorNotice message="No active employee expense types are configured. Please ask Admin to run seed or activate claim types." />
       )}
-      {employee?.isActive && orderedClaimTypes.length > 0 && (
+      {employee?.isActive && claimTypes.length > 0 && (
       <form action={createOrUpdateClaim} encType="multipart/form-data" className="space-y-4">
         <div className="card flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
           <div><span className="font-semibold">Employee:</span> {employee.employeeId} - {employee.name}</div>
@@ -46,7 +43,7 @@ export default async function NewClaimPage({ searchParams }: { searchParams: { e
           <div><span className="font-semibold">Cost Center:</span> {employee.costCenter || "-"}</div>
           <div><span className="font-semibold">Date:</span> {new Date().toLocaleDateString("en-IN")}</div>
         </div>
-        <EmployeeClaimLines claimTypes={orderedClaimTypes} maxUploadSizeMb={maxUploadSizeMb} />
+        <EmployeeClaimLines claimTypes={claimTypes} maxUploadSizeMb={maxUploadSizeMb} />
         <ClaimCertification />
         <div className="flex gap-2">
           <button className="btn-secondary" name="action" value="draft" formNoValidate>Save Draft</button>
