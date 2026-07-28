@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { Role, User } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
-export type SessionUser = Pick<User, "employeeId" | "name" | "role" | "email" | "isActive" | "mustChangePassword">;
+export type SessionUser = Pick<User, "employeeId" | "name" | "role" | "email" | "isActive" | "mustChangePassword" | "canDownloadNationalReports" | "canUploadPayments">;
 
 const COOKIE = "rdc_session";
 const DEFAULT_PUBLIC_APP_URL = "https://rdc-employee-claims-production.up.railway.app";
@@ -58,7 +58,7 @@ export async function getSession(): Promise<SessionUser | null> {
     const decoded = jwt.verify(token, secret()) as { employeeId: string };
     const user = await prisma.user.findUnique({
       where: { employeeId: decoded.employeeId },
-      select: { employeeId: true, name: true, role: true, email: true, isActive: true, mustChangePassword: true }
+      select: { employeeId: true, name: true, role: true, email: true, isActive: true, mustChangePassword: true, canDownloadNationalReports: true, canUploadPayments: true }
     });
     if (!user?.isActive) return null;
     return user;
@@ -108,6 +108,26 @@ export async function hasApproverAccess(user: Pick<SessionUser, "employeeId" | "
 export async function requireApprover() {
   const user = await requireUser();
   if (!(await hasApproverAccess(user))) redirect("/dashboard");
+  return user;
+}
+
+export function hasNationalReportAccess(user: Pick<SessionUser, "role" | "email" | "canDownloadNationalReports">) {
+  return isSuperAdmin(user) || user.canDownloadNationalReports;
+}
+
+export function hasPaymentUploadAccess(user: Pick<SessionUser, "role" | "email" | "canUploadPayments">) {
+  return isSuperAdmin(user) || user.canUploadPayments;
+}
+
+export async function requireReportViewer() {
+  const user = await requireUser();
+  if (user.role !== "ACCOUNTS" && !hasNationalReportAccess(user)) redirect("/dashboard");
+  return user;
+}
+
+export async function requirePaymentUploader() {
+  const user = await requireUser();
+  if (!hasPaymentUploadAccess(user)) redirect("/dashboard");
   return user;
 }
 

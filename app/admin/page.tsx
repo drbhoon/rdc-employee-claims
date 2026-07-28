@@ -6,12 +6,14 @@ import { EmailTestPanel } from "@/components/EmailTestPanel";
 import { ResetDatabasePanel } from "@/components/ResetDatabasePanel";
 import { SuperadminPasswordResetPanel } from "@/components/SuperadminPasswordResetPanel";
 import { deleteClaimType, saveClaimType } from "@/lib/actions";
+import { UserPermissionPanel } from "@/components/UserPermissionPanel";
 
 export default async function AdminPage({ searchParams }: { searchParams: { error?: string; message?: string } }) {
   const user = await requireSuperAdmin();
-  const [claimTypes, batches] = await Promise.all([
+  const [claimTypes, batches, permissionUsers] = await Promise.all([
     prisma.claimType.findMany({ where: { isActive: true }, orderBy: { name: "asc" } }),
-    prisma.employeeUploadBatch.findMany({ orderBy: { uploadedAt: "desc" }, take: 5, include: { errors: true } })
+    prisma.employeeUploadBatch.findMany({ orderBy: { uploadedAt: "desc" }, take: 5, include: { errors: true } }),
+    prisma.user.findMany({ where: { isActive: true, email: { not: null } }, select: { employeeId: true, name: true, email: true, canDownloadNationalReports: true, canUploadPayments: true }, orderBy: { name: "asc" } })
   ]);
   return (
     <Shell title="Admin Dashboard">
@@ -24,6 +26,10 @@ export default async function AdminPage({ searchParams }: { searchParams: { erro
           <div className="mt-4 overflow-x-auto"><table><thead><tr><th>File</th><th>Total</th><th>Valid</th><th>Errors</th><th>Imported</th><th>Status</th></tr></thead><tbody>{batches.map((b) => <tr key={b.id}><td>{b.fileName}</td><td>{b.totalRows}</td><td>{b.validRows}</td><td>{b.errorRows}</td><td>{b.importedRows}</td><td>{b.status}</td></tr>)}</tbody></table></div>
         </section>
       </div>
+      <section className="card mt-4">
+        <h2 className="mb-3 font-semibold">Delegated Report and Payment Rights</h2>
+        <UserPermissionPanel users={permissionUsers} />
+      </section>
       <section className="card mt-4">
         <h2 className="mb-3 font-semibold">Email Test</h2>
         <EmailTestPanel defaultTo={user.email || ""} />

@@ -38,35 +38,37 @@ enum UploadBatchStatus {
 }
 
 model User {
-  id                 String   @id @default(cuid())
-  employeeId         String   @unique
-  name               String
-  email              String?  @unique
-  mobile             String?
-  passwordHash       String
-  role               Role     @default(EMPLOYEE)
-  company            String?
-  designation        String?
-  location           String?
-  plant              String?
-  costCenter         String?
-  accountsName       String?
-  accountsEmail      String?
-  rmName             String?
-  rmEmail            String?
-  level1Name         String?
-  level1Email        String?
-  level2Name         String?
-  level2Email        String?
-  reportingManagerId String?
-  level2ApproverId   String?
-  level3ApproverId   String?
-  isActive           Boolean  @default(true)
-  mustChangePassword Boolean  @default(false)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  id                         String   @id @default(cuid())
+  employeeId                 String   @unique
+  name                       String
+  email                      String?  @unique
+  mobile                     String?
+  passwordHash               String
+  role                       Role     @default(EMPLOYEE)
+  company                    String?
+  designation                String?
+  location                   String?
+  plant                      String?
+  costCenter                 String?
+  accountsName               String?
+  accountsEmail              String?
+  rmName                     String?
+  rmEmail                    String?
+  level1Name                 String?
+  level1Email                String?
+  level2Name                 String?
+  level2Email                String?
+  reportingManagerId         String?
+  level2ApproverId           String?
+  level3ApproverId           String?
+  isActive                   Boolean  @default(true)
+  mustChangePassword         Boolean  @default(false)
+  canDownloadNationalReports Boolean  @default(false)
+  canUploadPayments          Boolean  @default(false)
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
 
-  claims ClaimHeader[]
+  claims              ClaimHeader[]
   passwordResetTokens PasswordResetToken[]
 }
 
@@ -104,6 +106,8 @@ model ClaimHeader {
   finalApprovedAt       DateTime?
   paymentDownloadedAt   DateTime?
   paidAt                DateTime?
+  paymentReference      String?
+  paymentRemarks        String?
   createdAt             DateTime    @default(now())
   updatedAt             DateTime    @updatedAt
 
@@ -145,16 +149,16 @@ model ClaimAttachment {
 }
 
 model ClaimType {
-  id               String   @id @default(cuid())
-  name             String   @unique
-  attachmentRequired Boolean @default(false)
-  maxAmountPerLine Decimal? @db.Decimal(12, 2)
-  monthlyLimit     Decimal? @db.Decimal(12, 2)
-  costHead         String?
-  glCode           String?
-  isActive         Boolean  @default(true)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  name               String   @unique
+  attachmentRequired Boolean  @default(false)
+  maxAmountPerLine   Decimal? @db.Decimal(12, 2)
+  monthlyLimit       Decimal? @db.Decimal(12, 2)
+  costHead           String?
+  glCode             String?
+  isActive           Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   lines ClaimLine[]
 }
@@ -201,11 +205,38 @@ model EmployeeUploadBatch {
 }
 
 model EmployeeUploadError {
-  id           String @id @default(cuid())
+  id           String  @id @default(cuid())
   batchId      String
   rowNumber    Int
   employeeId   String?
   errorMessage String
 
   batch EmployeeUploadBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+}
+
+model PaymentUploadBatch {
+  id            String            @id @default(cuid())
+  fileName      String
+  uploadedBy    String
+  totalRows     Int
+  validRows     Int
+  errorRows     Int
+  importedRows  Int               @default(0)
+  status        UploadBatchStatus @default(PREVIEWED)
+  validatedRows Json?
+  uploadedAt    DateTime          @default(now())
+  importedAt    DateTime?
+
+  errors PaymentUploadError[]
+}
+
+model PaymentUploadError {
+  id           String  @id @default(cuid())
+  batchId      String
+  rowNumber    Int
+  claimId      String?
+  employeeId   String?
+  errorMessage String
+
+  batch PaymentUploadBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
 }

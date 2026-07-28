@@ -378,6 +378,23 @@ export async function saveClaimType(formData: FormData) {
   redirect(`/admin?message=${encodeURIComponent(`${name} (${glCode}) was added to the claim dropdown.`)}`);
 }
 
+export async function updateUserPermissions(formData: FormData) {
+  await requireSuperAdmin();
+  const employeeId = String(formData.get("employeeId") || "").trim();
+  if (!employeeId) actionError("/admin", "Permission update: select an employee.");
+  const target = await prisma.user.findUnique({ where: { employeeId }, select: { name: true } });
+  if (!target) actionError("/admin", "Permission update: employee was not found.");
+  await prisma.user.update({
+    where: { employeeId },
+    data: {
+      canDownloadNationalReports: formData.get("canDownloadNationalReports") === "on",
+      canUploadPayments: formData.get("canUploadPayments") === "on"
+    }
+  });
+  revalidatePath("/admin");
+  redirect(`/admin?message=${encodeURIComponent(`Permissions updated for ${target.name}.`)}`);
+}
+
 export async function deleteClaimType(formData: FormData) {
   await requireSuperAdmin();
   const id = String(formData.get("id") || "");

@@ -1,5 +1,5 @@
 import { Shell } from "@/components/Shell";
-import { isSuperAdmin, requireUser } from "@/lib/auth";
+import { hasNationalReportAccess, requireReportViewer } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { statusLabel } from "@/lib/workflow";
 import { ClaimStatus, Prisma } from "@prisma/client";
@@ -19,27 +19,35 @@ function latestRejectionReason(history: { newStatus: string; comments: string | 
   return history.find((item) => item.newStatus.includes("REJECTED"))?.comments || "-";
 }
 
-export default async function ReportsPage({ searchParams }: { searchParams: { from?: string; to?: string } }) {
-  const user = await requireUser(["ACCOUNTS", "ADMIN"]);
-  const superAdmin = isSuperAdmin(user);
+export default async function ReportsPage({ searchParams }: { searchParams: { from?: string; to?: string; glCode?: string } }) {
+  const user = await requireReportViewer();
+  const nationalAccess = hasNationalReportAccess(user);
+  const selectedGlCode = searchParams.glCode && searchParams.glCode !== "ALL" ? searchParams.glCode : "ALL";
   const submittedAt = dateRange(searchParams.from, searchParams.to);
-  const baseWhere: Prisma.ClaimHeaderWhereInput = submittedAt ? { submittedAt } : {};
+  const accessWhere: Prisma.ClaimHeaderWhereInput = nationalAccess ? {} : { history: { some: { action: "ACCOUNTS_PASS", actionByEmployeeId: user.employeeId } } };
+  const glWhere: Prisma.ClaimHeaderWhereInput = selectedGlCode !== "ALL" ? { lines: { some: { claimType: { glCode: selectedGlCode } } } } : {};
+  const baseWhere: Prisma.ClaimHeaderWhereInput = { ...accessWhere, ...glWhere, ...(submittedAt ? { submittedAt } : {}) };
   const approvedWhere: Prisma.ClaimHeaderWhereInput = {
+    ...accessWhere,
     currentStatus: { in: approvedStatuses },
-    ...(submittedAt ? { finalApprovedAt: submittedAt } : {})
+    ...(submittedAt ? { finalApprovedAt: submittedAt } : {}),
+    ...glWhere
   };
   const csvQuery = new URLSearchParams();
   if (searchParams.from) csvQuery.set("from", searchParams.from);
   if (searchParams.to) csvQuery.set("to", searchParams.to);
+  if (selectedGlCode !== "ALL") csvQuery.set("glCode", selectedGlCode);
   const csvHref = `/api/reports/approved${csvQuery.size ? `?${csvQuery.toString()}` : ""}`;
 
-  const [byStatus, byEmployee, pending, rejected, approvedClaims] = await Promise.all([
+  const [byStatus, byEmployee, pending, rejected, approvedClaims, claimTypes] = await Promise.all([
     prisma.claimHeader.groupBy({ by: ["currentStatus"], where: baseWhere, _count: true }),
     prisma.claimHeader.groupBy({ by: ["employeeId"], where: baseWhere, _sum: { totalAmount: true }, _count: true }),
     prisma.claimHeader.findMany({ where: { ...baseWhere, currentStatus: { in: pendingStatuses } }, orderBy: { updatedAt: "desc" } }),
     prisma.claimHeader.findMany({ where: { ...baseWhere, currentStatus: { in: rejectedStatuses } }, include: { history: { orderBy: { actionDate: "desc" } } }, orderBy: { updatedAt: "desc" } }),
-    prisma.claimHeader.findMany({ where: approvedWhere, include: { lines: { include: { claimType: true } } } })
+    prisma.claimHeader.findMany({ where: approvedWhere, include: { lines: { where: selectedGlCode !== "ALL" ? { claimType: { glCode: selectedGlCode } } : undefined, include: { claimType: true } } } }),
+    prisma.claimType.findMany({ where: { isActive: true, glCode: { not: null } }, select: { glCode: true }, orderBy: { glCode: "asc" } })
   ]);
+  const glCodes = [...new Set(claimTypes.map((type) => type.glCode).filter(Boolean) as string[])];
   const glSummary = new Map<string, { type: string; amount: number }>();
   approvedClaims.forEach((claim) => {
     claim.lines.forEach((line) => {
@@ -52,15 +60,16 @@ export default async function ReportsPage({ searchParams }: { searchParams: { fr
 
   return (
     <Shell title="Reports">
-      <form className="card mb-4 grid gap-3 md:grid-cols-4" action="/reports">
+      <form className="card mb-4 grid gap-3 md:grid-cols-5" action="/reports">
         <div><label>From Date</label><input type="date" name="from" defaultValue={searchParams.from || ""} /></div>
         <div><label>To Date</label><input type="date" name="to" defaultValue={searchParams.to || ""} /></div>
+        <div><label>By GL Code</label><select name="glCode" defaultValue={selectedGlCode}><option value="ALL">All GL Codes</option>{glCodes.map((code) => <option key={code} value={code}>{code}</option>)}</select></div>
         <div className="flex items-end gap-2 md:col-span-2">
-          <button className="btn">Apply Period</button>
+          <button className="btn">Apply Filters</button>
           <a className="btn-secondary" href="/reports">Clear</a>
-          <a className="btn" href={csvHref}>{superAdmin ? "Download All Approved Claims CSV" : "Download My Cleared Approved Claims CSV"}</a>
+          <a className="btn" href={csvHref}>{nationalAccess ? "Download National Approved Claims CSV" : "Download My Cleared Approved Claims CSV"}</a>
         </div>
-        <p className="text-xs text-muted md:col-span-4">The approved-claims download uses the final approval date. Accounts downloads include only claims cleared by the logged-in Accounts user.</p>
+        <p className="text-xs text-muted md:col-span-5">Approved downloads use final approval date and the selected GL code. Accounts without national rights receive only claims they cleared.</p>
       </form>
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="card"><h2 className="mb-3 font-semibold">Claim Status Report</h2><table><thead><tr><th>Status</th><th>Count</th></tr></thead><tbody>{byStatus.map((r) => <tr key={r.currentStatus}><td>{statusLabel(r.currentStatus)}</td><td>{r._count}</td></tr>)}</tbody></table></section>

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getSession, hasApproverAccess, isSuperAdmin } from "@/lib/auth";
+import { getSession, hasApproverAccess, hasNationalReportAccess, hasPaymentUploadAccess, isSuperAdmin } from "@/lib/auth";
 import { ChartIcon, DocIcon, LogoutIcon, ShieldIcon, UserIcon } from "@/components/UiIcons";
 
 export async function Nav() {
@@ -7,6 +7,8 @@ export async function Nav() {
   if (!user) return null;
   const superAdmin = isSuperAdmin(user);
   const approverAccess = await hasApproverAccess(user);
+  const reportAccess = user.role === "ACCOUNTS" || hasNationalReportAccess(user);
+  const paymentAccess = hasPaymentUploadAccess(user);
   return (
     <header className="border-b border-line bg-white shadow-sm">
       <div className="h-1 bg-rdcGreen" />
@@ -21,7 +23,8 @@ export async function Nav() {
           {(user.role === "ACCOUNTS" || (user.role === "ADMIN" && !superAdmin)) && <NavLink href="/accounts" icon={<ShieldIcon />}>Accounts</NavLink>}
           {approverAccess && <NavLink href="/approver" icon={<ShieldIcon />}>Approvals</NavLink>}
           {superAdmin && <NavLink href="/admin" icon={<ShieldIcon />}>Admin</NavLink>}
-          {(user.role === "ACCOUNTS" || user.role === "ADMIN") && <NavLink href="/reports" icon={<ChartIcon />}>Reports</NavLink>}
+          {reportAccess && <NavLink href="/reports" icon={<ChartIcon />}>Reports</NavLink>}
+          {paymentAccess && <NavLink href="/payments" icon={<ChartIcon />}>Payments</NavLink>}
           <span className="col-span-2 inline-flex min-w-0 items-center gap-2 text-rdcGreen sm:col-span-1">
             <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-rdcGreen bg-green-50 sm:h-9 sm:w-9"><UserIcon className="h-5 w-5" /></span>
             <span className="max-w-full truncate sm:max-w-[12rem]">{user.name}{superAdmin ? " (Superadmin)" : ""}</span>
