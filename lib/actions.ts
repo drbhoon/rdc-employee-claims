@@ -395,6 +395,23 @@ export async function updateUserPermissions(formData: FormData) {
   redirect(`/admin?message=${encodeURIComponent(`Permissions updated for ${target.name}.`)}#delegated-rights`);
 }
 
+export async function revokeUserPermission(formData: FormData) {
+  await requireSuperAdmin();
+  const employeeId = String(formData.get("employeeId") || "").trim();
+  const permission = String(formData.get("permission") || "");
+  if (!employeeId) actionError("/admin", "Permission revoke: select an employee.");
+  if (permission !== "nationalReport" && permission !== "paymentUpload") actionError("/admin", "Permission revoke: invalid permission.");
+  const target = await prisma.user.findUnique({ where: { employeeId }, select: { name: true } });
+  if (!target) actionError("/admin", "Permission revoke: employee was not found.");
+  await prisma.user.update({
+    where: { employeeId },
+    data: permission === "nationalReport" ? { canDownloadNationalReports: false } : { canUploadPayments: false }
+  });
+  revalidatePath("/admin");
+  const label = permission === "nationalReport" ? "National Report" : "Payment Upload";
+  redirect(`/admin?message=${encodeURIComponent(`${label} right revoked for ${target.name}.`)}#delegated-rights`);
+}
+
 export async function deleteClaimType(formData: FormData) {
   await requireSuperAdmin();
   const id = String(formData.get("id") || "");

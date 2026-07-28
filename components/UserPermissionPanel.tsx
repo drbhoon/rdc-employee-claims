@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { updateUserPermissions } from "@/lib/actions";
+import { revokeUserPermission, updateUserPermissions } from "@/lib/actions";
 
 type PermissionUser = {
   employeeId: string;
@@ -16,7 +16,7 @@ export function UserPermissionPanel({ users, message }: { users: PermissionUser[
   const delegatedUsers = useMemo(() => users.filter((user) => user.canDownloadNationalReports || user.canUploadPayments), [users]);
   const matches = useMemo(() => {
     const text = query.trim().toLowerCase();
-    if (!text) return users.slice(0, 20);
+    if (text.length < 2) return [];
     return users.filter((user) => `${user.employeeId} ${user.name} ${user.email || ""}`.toLowerCase().includes(text)).slice(0, 20);
   }, [query, users]);
 
@@ -27,18 +27,26 @@ export function UserPermissionPanel({ users, message }: { users: PermissionUser[
         <h3 className="mb-2 font-semibold">Employees with delegated rights ({delegatedUsers.length})</h3>
         <div className="overflow-x-auto">
           <table>
-            <thead><tr><th>Employee</th><th>National Report</th><th>Payment Upload</th></tr></thead>
+            <thead><tr><th>Employee</th><th>Email</th><th>Granted Rights</th><th>Revoke</th></tr></thead>
             <tbody>
-              {delegatedUsers.map((user) => <tr key={user.employeeId}><td>{user.employeeId} - {user.name}</td><td>{user.canDownloadNationalReports ? "Granted" : "-"}</td><td>{user.canUploadPayments ? "Granted" : "-"}</td></tr>)}
-              {!delegatedUsers.length && <tr><td colSpan={3} className="text-center text-muted">No delegated rights have been granted.</td></tr>}
+              {delegatedUsers.map((user) => <tr key={user.employeeId}>
+                <td>{user.employeeId} - {user.name}</td>
+                <td>{user.email || "-"}</td>
+                <td>{[user.canDownloadNationalReports ? "National Report" : "", user.canUploadPayments ? "Payment Upload" : ""].filter(Boolean).join(", ")}</td>
+                <td><div className="flex flex-wrap gap-2">
+                  {user.canDownloadNationalReports && <form action={revokeUserPermission}><input type="hidden" name="employeeId" value={user.employeeId} /><input type="hidden" name="permission" value="nationalReport" /><button className="btn-secondary" type="submit">Revoke National Report</button></form>}
+                  {user.canUploadPayments && <form action={revokeUserPermission}><input type="hidden" name="employeeId" value={user.employeeId} /><input type="hidden" name="permission" value="paymentUpload" /><button className="btn-secondary" type="submit">Revoke Payment Upload</button></form>}
+                </div></td>
+              </tr>)}
+              {!delegatedUsers.length && <tr><td colSpan={4} className="text-center text-muted">No delegated rights have been granted.</td></tr>}
             </tbody>
           </table>
         </div>
       </div>
-      <div><label>Search employee by name, code or email</label><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Start typing to find an employee" /></div>
-      <div className="overflow-x-auto">
+      <div><label>Search employee to grant or change rights</label><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Enter at least 2 characters of name, code or email" /></div>
+      {query.trim().length >= 2 && <div className="overflow-x-auto">
         <table>
-          <thead><tr><th>Employee</th><th>Email</th><th>Permissions</th><th>Current Rights</th></tr></thead>
+          <thead><tr><th>Employee</th><th>Email</th><th>Select Rights</th><th>Current Rights</th></tr></thead>
           <tbody>
             {matches.map((user) => (
               <tr key={user.employeeId}>
@@ -54,10 +62,10 @@ export function UserPermissionPanel({ users, message }: { users: PermissionUser[
                 <td>{[user.canDownloadNationalReports ? "National Report" : "", user.canUploadPayments ? "Payment Upload" : ""].filter(Boolean).join(", ") || "None"}</td>
               </tr>
             ))}
-            {!matches.length && <tr><td colSpan={4} className="text-center text-muted">No matching employees or delegated users.</td></tr>}
+            {!matches.length && <tr><td colSpan={4} className="text-center text-muted">No matching employees.</td></tr>}
           </tbody>
         </table>
-      </div>
+      </div>}
     </div>
   );
 }
