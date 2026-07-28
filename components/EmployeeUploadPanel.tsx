@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 type PreviewResult = {
   batchId: string;
@@ -11,6 +12,7 @@ type PreviewResult = {
 };
 
 export function EmployeeUploadPanel() {
+  const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
   const [defaultPassword, setDefaultPassword] = useState("");
   const [preview, setPreview] = useState<PreviewResult | null>(null);
@@ -37,7 +39,8 @@ export function EmployeeUploadPanel() {
         setPreview(json);
         setMessage(json.errorRows > 0 ? `Validation failed: ${json.errorRows} row error(s). See details below.` : `Validation passed: ${json.validRows} valid record(s).`);
       } else {
-        setMessage(`Imported ${json.importedRows} employees.`);
+        setMessage(`Imported ${json.importedRows} employees. Employee lists refreshed.`);
+        router.refresh();
       }
     } catch {
       setMessage("Upload failed. Please try again or check the server logs.");

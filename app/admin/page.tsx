@@ -7,14 +7,18 @@ import { ResetDatabasePanel } from "@/components/ResetDatabasePanel";
 import { SuperadminPasswordResetPanel } from "@/components/SuperadminPasswordResetPanel";
 import { deleteClaimType, saveClaimType } from "@/lib/actions";
 import { UserPermissionPanel } from "@/components/UserPermissionPanel";
+import { EmployeeMasterPanel } from "@/components/EmployeeMasterPanel";
+import { isWorkflowPlaceholderEmployeeId } from "@/lib/employeeUpload";
 
 export default async function AdminPage({ searchParams }: { searchParams: { error?: string; message?: string } }) {
   const user = await requireSuperAdmin();
-  const [claimTypes, batches, permissionUsers] = await Promise.all([
+  const [claimTypes, batches, employeeUsers] = await Promise.all([
     prisma.claimType.findMany({ where: { isActive: true }, orderBy: { name: "asc" } }),
     prisma.employeeUploadBatch.findMany({ orderBy: { uploadedAt: "desc" }, take: 5, include: { errors: true } }),
-    prisma.user.findMany({ where: { isActive: true, email: { not: null } }, select: { employeeId: true, name: true, email: true, canDownloadNationalReports: true, canUploadPayments: true }, orderBy: { name: "asc" } })
+    prisma.user.findMany({ select: { employeeId: true, name: true, email: true, role: true, company: true, location: true, plant: true, costCenter: true, isActive: true, canDownloadNationalReports: true, canUploadPayments: true }, orderBy: { name: "asc" } })
   ]);
+  const realEmployees = employeeUsers.filter((employee) => !isWorkflowPlaceholderEmployeeId(employee.employeeId) && employee.employeeId !== "SUPERADMIN");
+  const permissionUsers = realEmployees.filter((employee) => employee.isActive && employee.email);
   return (
     <Shell title="Admin Dashboard">
       {searchParams.error && <div className="mb-4 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">{searchParams.error}</div>}
@@ -56,7 +60,7 @@ export default async function AdminPage({ searchParams }: { searchParams: { erro
       </section>
       <section className="card mt-4">
         <h2 className="mb-3 font-semibold">Employee Master</h2>
-        <a className="btn-secondary" href="/api/admin/employees/export">Download Employee Master</a>
+        <EmployeeMasterPanel users={realEmployees} />
       </section>
     </Shell>
   );
