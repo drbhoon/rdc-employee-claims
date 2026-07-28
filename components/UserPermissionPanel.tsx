@@ -17,7 +17,11 @@ export function UserPermissionPanel({ users, message }: { users: PermissionUser[
   const matches = useMemo(() => {
     const text = query.trim().toLowerCase();
     if (text.length < 2) return [];
-    return users.filter((user) => `${user.employeeId} ${user.name} ${user.email || ""}`.toLowerCase().includes(text)).slice(0, 20);
+    return users.filter((user) =>
+      !user.canDownloadNationalReports &&
+      !user.canUploadPayments &&
+      `${user.employeeId} ${user.name} ${user.email || ""}`.toLowerCase().includes(text)
+    ).slice(0, 20);
   }, [query, users]);
 
   return (
@@ -43,10 +47,10 @@ export function UserPermissionPanel({ users, message }: { users: PermissionUser[
           </table>
         </div>
       </div>
-      <div><label>Search employee to grant or change rights</label><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Enter at least 2 characters of name, code or email" /></div>
+      <div><label>Search employee to grant rights</label><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Enter at least 2 characters of name, code or email" /></div>
       {query.trim().length >= 2 && <div className="overflow-x-auto">
         <table>
-          <thead><tr><th>Employee</th><th>Email</th><th>Select Rights</th><th>Current Rights</th></tr></thead>
+          <thead><tr><th>Employee</th><th>Email</th><th>Select Rights</th></tr></thead>
           <tbody>
             {matches.map((user) => (
               <tr key={user.employeeId}>
@@ -56,13 +60,12 @@ export function UserPermissionPanel({ users, message }: { users: PermissionUser[
                     <input type="hidden" name="employeeId" value={user.employeeId} />
                     <label className="flex items-center gap-2"><input type="checkbox" name="canDownloadNationalReports" defaultChecked={user.canDownloadNationalReports} /> National report download</label>
                     <label className="flex items-center gap-2"><input type="checkbox" name="canUploadPayments" defaultChecked={user.canUploadPayments} /> Payment upload</label>
-                    <button className="btn-secondary" type="submit">Save Rights</button>
+                    <button className="btn-secondary" type="submit">Grant Selected Rights</button>
                   </form>
                 </td>
-                <td>{[user.canDownloadNationalReports ? "National Report" : "", user.canUploadPayments ? "Payment Upload" : ""].filter(Boolean).join(", ") || "None"}</td>
               </tr>
             ))}
-            {!matches.length && <tr><td colSpan={4} className="text-center text-muted">No matching employees.</td></tr>}
+            {!matches.length && <tr><td colSpan={3} className="text-center text-muted">No matching employees without existing rights.</td></tr>}
           </tbody>
         </table>
       </div>}

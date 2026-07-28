@@ -382,13 +382,16 @@ export async function updateUserPermissions(formData: FormData) {
   await requireSuperAdmin();
   const employeeId = String(formData.get("employeeId") || "").trim();
   if (!employeeId) actionError("/admin", "Permission update: select an employee.");
+  const canDownloadNationalReports = formData.get("canDownloadNationalReports") === "on";
+  const canUploadPayments = formData.get("canUploadPayments") === "on";
+  if (!canDownloadNationalReports && !canUploadPayments) actionError("/admin", "Permission update: select at least one right to grant.");
   const target = await prisma.user.findUnique({ where: { employeeId }, select: { name: true } });
   if (!target) actionError("/admin", "Permission update: employee was not found.");
   await prisma.user.update({
     where: { employeeId },
     data: {
-      canDownloadNationalReports: formData.get("canDownloadNationalReports") === "on",
-      canUploadPayments: formData.get("canUploadPayments") === "on"
+      canDownloadNationalReports,
+      canUploadPayments
     }
   });
   revalidatePath("/admin");
