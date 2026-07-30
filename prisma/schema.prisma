@@ -114,6 +114,10 @@ model ClaimHeader {
   employee User                   @relation(fields: [employeeId], references: [employeeId])
   lines    ClaimLine[]
   history  ClaimApprovalHistory[]
+
+  @@index([employeeId, createdAt])
+  @@index([currentStatus, currentPendingWith])
+  @@index([finalApprovedAt])
 }
 
 model ClaimLine {
@@ -133,6 +137,8 @@ model ClaimLine {
   claimHeader ClaimHeader       @relation(fields: [claimHeaderId], references: [id], onDelete: Cascade)
   claimType   ClaimType         @relation(fields: [claimTypeId], references: [id])
   attachments ClaimAttachment[]
+
+  @@index([claimHeaderId])
 }
 
 model ClaimAttachment {
@@ -146,6 +152,8 @@ model ClaimAttachment {
   uploadedAt  DateTime @default(now())
 
   claimLine ClaimLine @relation(fields: [claimLineId], references: [id], onDelete: Cascade)
+
+  @@index([claimLineId])
 }
 
 model ClaimType {
@@ -188,6 +196,8 @@ model ClaimApprovalHistory {
   actionDate         DateTime    @default(now())
 
   claimHeader ClaimHeader @relation(fields: [claimHeaderId], references: [id], onDelete: Cascade)
+
+  @@index([claimHeaderId, actionDate])
 }
 
 model EmployeeUploadBatch {
