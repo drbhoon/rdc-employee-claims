@@ -8,6 +8,7 @@ import { ActionButton } from "@/components/ActionButton";
 import { ErrorNotice } from "@/components/ErrorNotice";
 import { EmployeeClaimLines } from "@/components/EmployeeClaimLines";
 import { ClaimCertification } from "@/components/ClaimCertification";
+import { formatIndiaDateTime } from "@/lib/dateFormat";
 
 const editableStatuses = [
   "DRAFT",
@@ -63,7 +64,7 @@ export default async function ClaimDetail({ params, searchParams }: { params: { 
             <div><label>Status</label><div className="mt-2"><StatusBadge status={claim.currentStatus} /></div></div>
             <div><label>Total</label><div className="mt-2 font-bold">INR {String(claim.totalAmount)}</div></div>
             <div><label>Pending With</label><div className="mt-2">{claim.currentPendingWith || "-"}</div></div>
-            <div><label>Submitted</label><div className="mt-2">{claim.submittedAt?.toLocaleString("en-IN") || "-"}</div></div>
+            <div><label>Submitted</label><div className="mt-2">{formatIndiaDateTime(claim.submittedAt)}</div></div>
           </div>
           {claim.amendmentRemarks && (
             <div className="mb-4">
@@ -127,7 +128,7 @@ export default async function ClaimDetail({ params, searchParams }: { params: { 
           {canApprove && <form action={approverAction} className="card space-y-2"><h2 className="font-semibold">Approver Action</h2><input type="hidden" name="id" value={claim.id} /><textarea name="comments" placeholder="Required for rejection" /><div className="flex gap-2"><ActionButton name="action" value="approve" variant="primary">Approve</ActionButton><ActionButton name="action" value="reject">Reject</ActionButton></div></form>}
         </aside>
       </div>
-      <section className="card mt-4"><h2 className="mb-3 font-semibold">Approval History</h2><table><thead><tr><th>Date</th><th>Action By</th><th>Action</th><th>From</th><th>To</th><th>Comments</th></tr></thead><tbody>{claim.history.map((h) => <tr key={h.id}><td>{h.actionDate.toLocaleString("en-IN")}</td><td>{h.actionByName}</td><td>{h.action}</td><td>{h.previousStatus}</td><td>{h.newStatus}</td><td>{h.comments || "-"}</td></tr>)}</tbody></table></section>
+      <section className="card mt-4"><h2 className="mb-3 font-semibold">Approval History</h2><table><thead><tr><th>Date</th><th>Action By</th><th>Action</th><th>From</th><th>To</th><th>Comments</th></tr></thead><tbody>{claim.history.map((h) => <tr key={h.id}><td>{formatIndiaDateTime(h.actionDate)}</td><td>{h.actionByName}</td><td>{h.action}</td><td>{h.previousStatus}</td><td>{h.newStatus}</td><td>{h.comments || "-"}</td></tr>)}</tbody></table></section>
     </Shell>
   );
 }
