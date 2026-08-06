@@ -68,11 +68,13 @@ export default async function ReportsPage({ searchParams }: { searchParams: { fr
         <div><label>From Date</label><input type="date" name="from" defaultValue={searchParams.from || ""} /></div>
         <div><label>To Date</label><input type="date" name="to" defaultValue={searchParams.to || ""} /></div>
         <div><label>By GL Code</label><select name="glCode" defaultValue={selectedGlCode}><option value="ALL">All GL Codes</option>{glCodes.map((code) => <option key={code} value={code}>{code}</option>)}</select></div>
-        <div className="flex flex-wrap items-end gap-2 md:col-span-2">
+        <div className="flex items-start gap-2 md:col-span-2">
           <button className="btn">Apply Filters</button>
           <a className="btn-secondary" href="/reports">Clear</a>
-          <a className="btn" href={csvHref}>{nationalAccess ? "Download Approved Claims - GL Wise" : "Download My Cleared Claims - GL Wise"}</a>
-          <a className="btn" href={claimWiseHref}>{nationalAccess ? "Download Approved Claims - Claim ID Wise" : "Download My Cleared Claims - Claim ID Wise"}</a>
+          <div className="flex flex-col items-start gap-2">
+            <a className="btn whitespace-nowrap" href={csvHref}>{nationalAccess ? "Download Approved Claims - GL Wise" : "Download My Cleared Claims - GL Wise"}</a>
+            <a className="btn whitespace-nowrap" href={claimWiseHref}>{nationalAccess ? "Download Approved Claims - Claim ID Wise" : "Download My Cleared Claims - Claim ID Wise"}</a>
+          </div>
         </div>
         <p className="text-xs text-muted md:col-span-5">Both downloads use final approval date. The GL-wise report applies the selected GL code; the Claim ID-wise payment report ignores GL code and includes one row per claim awaiting payment. Accounts without national rights receive only claims they cleared.</p>
       </form>
