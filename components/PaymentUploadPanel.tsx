@@ -11,11 +11,16 @@ type Preview = {
   rows: { rowNumber: number; claimId: string; employeeId: string; paidDate: string; paymentReference: string }[];
 };
 
-export function PaymentUploadPanel() {
+export function PaymentUploadPanel({ from, to }: { from?: string; to?: string }) {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const invalidDateRange = Boolean(from && to && from > to);
+  const downloadQuery = new URLSearchParams();
+  if (from) downloadQuery.set("from", from);
+  if (to) downloadQuery.set("to", to);
+  const downloadHref = `/api/payments/template${downloadQuery.size ? `?${downloadQuery.toString()}` : ""}`;
 
   async function validate() {
     if (!file) return;
@@ -45,8 +50,13 @@ export function PaymentUploadPanel() {
 
   return (
     <div className="space-y-3">
-      <div><a className="btn-secondary" href="/api/payments/template">Download Claims Awaiting Payment</a></div>
-      <p className="text-sm text-muted">This file contains only Final Approved claims not yet marked Paid. Fill Paid Date for claims being paid. Payment Reference and Remarks are optional.</p>
+      <form action="/payments" className="grid gap-3 md:grid-cols-4">
+        <div><label>From Approval Date</label><input type="date" name="from" defaultValue={from || ""} /></div>
+        <div><label>To Approval Date</label><input type="date" name="to" defaultValue={to || ""} /></div>
+        <div className="flex flex-wrap items-end gap-2 md:col-span-2"><button className="btn" type="submit">Apply Dates</button><a className="btn-secondary" href="/payments">Clear</a>{!invalidDateRange && <a className="btn-secondary" href={downloadHref}>Download Claims Awaiting Payment</a>}</div>
+      </form>
+      {invalidDateRange && <div className="rounded border border-red-200 bg-red-50 p-2 text-sm text-red-700">From date cannot be after To date.</div>}
+      <p className="text-sm text-muted">This Claim ID-wise file contains only Final Approved claims not yet marked Paid within the selected approval-date period. Fill Paid Date for claims being paid. Payment Reference and Remarks are optional.</p>
       <div><label>Completed CSV/Excel File</label><input type="file" accept=".csv,.xlsx,.xls" onChange={(event) => { setFile(event.target.files?.[0] || null); setPreview(null); setMessage(""); }} /></div>
       <div className="flex gap-2"><button className="btn-secondary" type="button" disabled={!file || busy} onClick={validate}>Validate Preview</button><button className="btn" type="button" disabled={!preview || preview.errorRows > 0 || busy} onClick={apply}>Mark Valid Claims Paid</button></div>
       {message && <div className="rounded border border-line bg-panel p-2 text-sm">{message}</div>}

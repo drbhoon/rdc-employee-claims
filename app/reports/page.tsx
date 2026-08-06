@@ -38,6 +38,10 @@ export default async function ReportsPage({ searchParams }: { searchParams: { fr
   if (searchParams.to) csvQuery.set("to", searchParams.to);
   if (selectedGlCode !== "ALL") csvQuery.set("glCode", selectedGlCode);
   const csvHref = `/api/reports/approved${csvQuery.size ? `?${csvQuery.toString()}` : ""}`;
+  const claimWiseQuery = new URLSearchParams();
+  if (searchParams.from) claimWiseQuery.set("from", searchParams.from);
+  if (searchParams.to) claimWiseQuery.set("to", searchParams.to);
+  const claimWiseHref = `/api/reports/approved-claimwise${claimWiseQuery.size ? `?${claimWiseQuery.toString()}` : ""}`;
 
   const [byStatus, byEmployee, pending, rejected, approvedClaims, claimTypes] = await Promise.all([
     prisma.claimHeader.groupBy({ by: ["currentStatus"], where: baseWhere, _count: true }),
@@ -64,12 +68,13 @@ export default async function ReportsPage({ searchParams }: { searchParams: { fr
         <div><label>From Date</label><input type="date" name="from" defaultValue={searchParams.from || ""} /></div>
         <div><label>To Date</label><input type="date" name="to" defaultValue={searchParams.to || ""} /></div>
         <div><label>By GL Code</label><select name="glCode" defaultValue={selectedGlCode}><option value="ALL">All GL Codes</option>{glCodes.map((code) => <option key={code} value={code}>{code}</option>)}</select></div>
-        <div className="flex items-end gap-2 md:col-span-2">
+        <div className="flex flex-wrap items-end gap-2 md:col-span-2">
           <button className="btn">Apply Filters</button>
           <a className="btn-secondary" href="/reports">Clear</a>
-          <a className="btn" href={csvHref}>{nationalAccess ? "Download National Approved Claims CSV" : "Download My Cleared Approved Claims CSV"}</a>
+          <a className="btn" href={csvHref}>{nationalAccess ? "Download Approved Claims - GL Wise" : "Download My Cleared Claims - GL Wise"}</a>
+          <a className="btn" href={claimWiseHref}>{nationalAccess ? "Download Approved Claims - Claim ID Wise" : "Download My Cleared Claims - Claim ID Wise"}</a>
         </div>
-        <p className="text-xs text-muted md:col-span-5">Approved downloads use final approval date and the selected GL code. Accounts without national rights receive only claims they cleared.</p>
+        <p className="text-xs text-muted md:col-span-5">Both downloads use final approval date. The GL-wise report applies the selected GL code; the Claim ID-wise payment report ignores GL code and includes one row per claim awaiting payment. Accounts without national rights receive only claims they cleared.</p>
       </form>
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="card"><h2 className="mb-3 font-semibold">Claim Status Report</h2><table><thead><tr><th>Status</th><th>Count</th></tr></thead><tbody>{byStatus.map((r) => <tr key={r.currentStatus}><td>{statusLabel(r.currentStatus)}</td><td>{r._count}</td></tr>)}</tbody></table></section>
