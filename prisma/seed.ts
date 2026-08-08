@@ -126,6 +126,11 @@ async function main() {
     });
   }
 
+  await prisma.claimType.updateMany({
+    where: { name: { in: ["Employee Advance", "Happay Card Recharge"], mode: "insensitive" } },
+    data: { paymentTreatment: "EMPLOYEE_ADVANCE" }
+  });
+
   await prisma.approvalRule.deleteMany({});
   await prisma.approvalRule.createMany({
     data: [

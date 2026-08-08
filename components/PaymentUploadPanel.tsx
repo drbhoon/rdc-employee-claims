@@ -8,7 +8,7 @@ type Preview = {
   validRows: number;
   errorRows: number;
   errors: { rowNumber: number; claimId: string | null; employeeId: string | null; errorMessage: string }[];
-  rows: { rowNumber: number; claimId: string; employeeId: string; paidDate: string; paymentReference: string }[];
+  rows: { rowNumber: number; claimId: string; employeeId: string; paidDate: string; paymentReference: string; netPayable?: number; closingAdvanceBalance?: number }[];
 };
 
 export function PaymentUploadPanel({ from, to }: { from?: string; to?: string }) {
@@ -56,12 +56,12 @@ export function PaymentUploadPanel({ from, to }: { from?: string; to?: string })
         <div className="flex flex-wrap items-end gap-2 md:col-span-2"><button className="btn" type="submit">Apply Dates</button><a className="btn-secondary" href="/payments">Clear</a>{!invalidDateRange && <a className="btn-secondary" href={downloadHref}>Download Claims Awaiting Payment</a>}</div>
       </form>
       {invalidDateRange && <div className="rounded border border-red-200 bg-red-50 p-2 text-sm text-red-700">From date cannot be after To date.</div>}
-      <p className="text-sm text-muted">This Claim ID-wise file contains only Final Approved claims not yet marked Paid within the selected approval-date period. Fill Paid Date for claims being paid. Payment Reference and Remarks are optional.</p>
+      <p className="text-sm text-muted">This file nets reimbursements, Employee Advances, Happay Card Recharges and any carried balance employee-wise. Fill Paid Date to settle every included claim. Payment Reference is optional when Net Payable is zero.</p>
       <div><label>Completed CSV/Excel File</label><input type="file" accept=".csv,.xlsx,.xls" onChange={(event) => { setFile(event.target.files?.[0] || null); setPreview(null); setMessage(""); }} /></div>
       <div className="flex gap-2"><button className="btn-secondary" type="button" disabled={!file || busy} onClick={validate}>Validate Preview</button><button className="btn" type="button" disabled={!preview || preview.errorRows > 0 || busy} onClick={apply}>Mark Valid Claims Paid</button></div>
       {message && <div className="rounded border border-line bg-panel p-2 text-sm">{message}</div>}
       {preview && <div className="space-y-2"><div className="grid grid-cols-3 gap-2 text-sm"><div className="rounded border p-2">Valid: <strong>{preview.validRows}</strong></div><div className="rounded border p-2">Errors: <strong>{preview.errorRows}</strong></div><div className="rounded border p-2">File rows: <strong>{preview.totalRows}</strong></div></div>
-        {preview.rows.length > 0 && <table><thead><tr><th>Row</th><th>Claim</th><th>Employee</th><th>Paid Date</th><th>Reference</th></tr></thead><tbody>{preview.rows.map((row) => <tr key={row.claimId}><td>{row.rowNumber}</td><td>{row.claimId}</td><td>{row.employeeId}</td><td>{row.paidDate}</td><td>{row.paymentReference || "-"}</td></tr>)}</tbody></table>}
+        {preview.rows.length > 0 && <table><thead><tr><th>Row</th><th>Claims</th><th>Employee</th><th>Net Payable</th><th>Carry Forward</th><th>Paid Date</th><th>Reference</th></tr></thead><tbody>{preview.rows.map((row) => <tr key={row.claimId}><td>{row.rowNumber}</td><td>{row.claimId}</td><td>{row.employeeId}</td><td>{Number(row.netPayable || 0).toFixed(2)}</td><td>{Number(row.closingAdvanceBalance || 0).toFixed(2)}</td><td>{row.paidDate}</td><td>{row.paymentReference || "-"}</td></tr>)}</tbody></table>}
         {preview.errors.length > 0 && <table><thead><tr><th>Row</th><th>Claim</th><th>Employee</th><th>Error</th></tr></thead><tbody>{preview.errors.map((error) => <tr key={`${error.rowNumber}-${error.errorMessage}`}><td>{error.rowNumber}</td><td>{error.claimId || "-"}</td><td>{error.employeeId || "-"}</td><td>{error.errorMessage}</td></tr>)}</tbody></table>}
       </div>}
     </div>

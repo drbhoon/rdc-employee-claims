@@ -364,6 +364,7 @@ export async function saveClaimType(formData: FormData) {
     monthlyLimit: formData.get("monthlyLimit") ? money(formData.get("monthlyLimit")) : null,
     costHead: String(formData.get("costHead") || ""),
     glCode,
+    paymentTreatment: formData.get("paymentTreatment") === "EMPLOYEE_ADVANCE" ? "EMPLOYEE_ADVANCE" as const : "REIMBURSEMENT" as const,
     isActive: formData.get("isActive") === "on"
   };
   try {

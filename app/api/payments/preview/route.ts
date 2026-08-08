@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSession, hasPaymentUploadAccess } from "@/lib/auth";
 import { parsePaymentUpload, type PaymentUploadRowError } from "@/lib/paymentUpload";
 import { prisma } from "@/lib/prisma";
+import { employeePaymentRows } from "@/lib/paymentReport";
 
 export async function POST(request: Request) {
   const user = await getSession();
@@ -15,13 +16,24 @@ export async function POST(request: Request) {
   catch { return NextResponse.json({ error: "Unable to read the file. Use the downloaded CSV or an Excel workbook." }, { status: 400 }); }
   const errors: PaymentUploadRowError[] = [...parsed.errors];
   const valid = [];
+  const includedClaimIds = new Set<string>();
   for (const row of parsed.rows) {
-    const claim = await prisma.claimHeader.findUnique({ where: { claimId: row.claimId }, select: { employeeId: true, currentStatus: true } });
-    if (!claim) errors.push({ rowNumber: row.rowNumber, claimId: row.claimId, employeeId: row.employeeId, errorMessage: "Claim ID was not found." });
-    else if (claim.employeeId.toLowerCase() !== row.employeeId.toLowerCase()) errors.push({ rowNumber: row.rowNumber, claimId: row.claimId, employeeId: row.employeeId, errorMessage: `Employee ID does not match claim owner ${claim.employeeId}.` });
-    else if (claim.currentStatus === "PAID") errors.push({ rowNumber: row.rowNumber, claimId: row.claimId, employeeId: row.employeeId, errorMessage: "Claim is already Paid." });
-    else if (claim.currentStatus !== "FINAL_APPROVED") errors.push({ rowNumber: row.rowNumber, claimId: row.claimId, employeeId: row.employeeId, errorMessage: `Only Final Approved claims can be paid; current status is ${claim.currentStatus}.` });
-    else valid.push(row);
+    const repeated = row.claimIds.find((id) => includedClaimIds.has(id.toLowerCase()));
+    if (repeated) {
+      errors.push({ rowNumber: row.rowNumber, claimId: repeated, employeeId: row.employeeId, errorMessage: "Claim ID appears in more than one payment row." });
+      continue;
+    }
+    row.claimIds.forEach((id) => includedClaimIds.add(id.toLowerCase()));
+    const claims = await prisma.claimHeader.findMany({ where: { claimId: { in: row.claimIds } }, include: { lines: { include: { claimType: true } } } });
+    const missing = row.claimIds.filter((id) => !claims.some((claim) => claim.claimId.toLowerCase() === id.toLowerCase()));
+    const invalid = claims.find((claim) => claim.employeeId.toLowerCase() !== row.employeeId.toLowerCase() || claim.currentStatus !== "FINAL_APPROVED");
+    if (missing.length) errors.push({ rowNumber: row.rowNumber, claimId: row.claimId, employeeId: row.employeeId, errorMessage: `Claim ID(s) not found: ${missing.join(", ")}.` });
+    else if (invalid) errors.push({ rowNumber: row.rowNumber, claimId: invalid.claimId, employeeId: row.employeeId, errorMessage: invalid.employeeId.toLowerCase() !== row.employeeId.toLowerCase() ? `Employee ID does not match claim owner ${invalid.employeeId}.` : `Only Final Approved claims can be settled; current status is ${invalid.currentStatus}.` });
+    else {
+      const balance = await prisma.employeeAdvanceBalance.findUnique({ where: { employeeId: claims[0].employeeId } });
+      const calculated = employeePaymentRows(claims, new Map([[row.employeeId.toLowerCase(), Number(balance?.balance || 0)]]))[0];
+      valid.push({ ...row, openingAdvanceBalance: calculated.openingAdvanceBalance, netPayable: calculated.netPayable, closingAdvanceBalance: calculated.closingAdvanceBalance });
+    }
   }
   const batch = await prisma.paymentUploadBatch.create({ data: { fileName: file.name, uploadedBy: user.employeeId, totalRows: parsed.totalRows, validRows: valid.length, errorRows: errors.length, validatedRows: valid, errors: { create: errors } }, include: { errors: true } });
   return NextResponse.json({ batchId: batch.id, totalRows: parsed.totalRows, validRows: valid.length, errorRows: errors.length, errors: batch.errors, rows: valid });

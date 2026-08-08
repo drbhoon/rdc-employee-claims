@@ -1,7 +1,7 @@
 import { csvResponse } from "@/lib/csv";
 import { getSession, hasPaymentUploadAccess } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { invalidPaymentDateRange, paymentApprovalDateRange, paymentPeriodSuffix, paymentReportHeaders, paymentReportRows } from "@/lib/paymentReport";
+import { employeePaymentRows, invalidPaymentDateRange, paymentApprovalDateRange, paymentPeriodSuffix, paymentReportHeaders, paymentReportRows } from "@/lib/paymentReport";
 
 export async function GET(request: Request) {
   const user = await getSession();
@@ -11,6 +11,8 @@ export async function GET(request: Request) {
   const to = searchParams.get("to");
   if (invalidPaymentDateRange(from, to)) return new Response("From date cannot be after To date.", { status: 400 });
   const finalApprovedAt = paymentApprovalDateRange(from, to);
-  const claims = await prisma.claimHeader.findMany({ where: { currentStatus: "FINAL_APPROVED", ...(finalApprovedAt ? { finalApprovedAt } : {}) }, orderBy: { finalApprovedAt: "asc" } });
-  return csvResponse(`claims-awaiting-payment${paymentPeriodSuffix(from, to)}.csv`, paymentReportRows(claims), paymentReportHeaders);
+  const claims = await prisma.claimHeader.findMany({ where: { currentStatus: "FINAL_APPROVED", ...(finalApprovedAt ? { finalApprovedAt } : {}) }, include: { lines: { include: { claimType: true } } }, orderBy: { finalApprovedAt: "asc" } });
+  const balanceRows = await prisma.employeeAdvanceBalance.findMany({ where: { employeeId: { in: [...new Set(claims.map((claim) => claim.employeeId))] } } });
+  const balances = new Map(balanceRows.map((row) => [row.employeeId.toLowerCase(), Number(row.balance)]));
+  return csvResponse(`claims-awaiting-payment${paymentPeriodSuffix(from, to)}.csv`, paymentReportRows(employeePaymentRows(claims, balances)), paymentReportHeaders);
 }

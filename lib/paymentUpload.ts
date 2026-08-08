@@ -3,10 +3,14 @@ import * as XLSX from "xlsx";
 export type PaymentUploadRow = {
   rowNumber: number;
   claimId: string;
+  claimIds: string[];
   employeeId: string;
   paidDate: string;
   paymentReference: string;
   paymentRemarks: string;
+  openingAdvanceBalance?: number;
+  netPayable?: number;
+  closingAdvanceBalance?: number;
 };
 
 export type PaymentUploadRowError = {
@@ -49,26 +53,28 @@ export function parsePaymentUpload(buffer: Buffer) {
   rawRows.forEach((raw, index) => {
     const normalized = Object.fromEntries(Object.entries(raw).map(([header, value]) => [key(header), value]));
     const rowNumber = index + 2;
-    const claimId = text(normalized.claim_id);
+    const claimIdsText = text(normalized.claim_ids || normalized.claim_id);
+    const claimIds = claimIdsText.split(/[;,]/).map((value) => value.trim()).filter(Boolean);
+    const claimId = claimIds.join("; ");
     const employeeId = text(normalized.employee_id || normalized.employee_code);
     const rawPaidDate = normalized.paid_date || normalized.payment_date;
     const paidDate = isoDate(rawPaidDate);
     const paymentReference = text(normalized.payment_reference || normalized.utr_reference || normalized.utr);
     const paymentRemarks = text(normalized.payment_remarks || normalized.remarks);
     if (!claimId || claimId.toUpperCase() === "SUMMARY" || !text(rawPaidDate)) return;
-    const row = { rowNumber, claimId, employeeId, paidDate, paymentReference, paymentRemarks };
+    const row = { rowNumber, claimId, claimIds, employeeId, paidDate, paymentReference, paymentRemarks };
     if (!employeeId) errors.push({ rowNumber, claimId, employeeId: null, errorMessage: "Employee ID is required." });
     if (!paidDate) errors.push({ rowNumber, claimId, employeeId: employeeId || null, errorMessage: "Paid Date must be YYYY-MM-DD or DD/MM/YYYY." });
-    const existing = grouped.get(claimId.toLowerCase());
+    const existing = grouped.get(claimIds.map((id) => id.toLowerCase()).sort().join("|"));
     if (existing) {
       if (existing.employeeId !== employeeId || existing.paidDate !== paidDate || existing.paymentReference !== paymentReference || existing.paymentRemarks !== paymentRemarks) {
         errors.push({ rowNumber, claimId, employeeId: employeeId || null, errorMessage: "Duplicate Claim ID has conflicting payment values." });
       }
       return;
     }
-    grouped.set(claimId.toLowerCase(), row);
+    grouped.set(claimIds.map((id) => id.toLowerCase()).sort().join("|"), row);
     rows.push(row);
   });
-  if (!rows.length && !errors.length) errors.push({ rowNumber: 1, claimId: null, employeeId: null, errorMessage: "No rows contain both Claim ID and Paid Date." });
+  if (!rows.length && !errors.length) errors.push({ rowNumber: 1, claimId: null, employeeId: null, errorMessage: "No rows contain both Claim IDs and Paid Date." });
   return { totalRows: rawRows.length, rows, errors };
 }

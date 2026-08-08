@@ -22,6 +22,7 @@ export async function POST(request: Request) {
     const uploadBatches = await tx.employeeUploadBatch.deleteMany({});
     const paymentErrors = await tx.paymentUploadError.deleteMany({});
     const paymentBatches = await tx.paymentUploadBatch.deleteMany({});
+    const advanceBalances = await tx.employeeAdvanceBalance.deleteMany({});
     const resetTokens = await tx.passwordResetToken.deleteMany({});
     const users = await tx.user.deleteMany({ where: { employeeId: { not: user.employeeId } } });
     return {
@@ -33,6 +34,7 @@ export async function POST(request: Request) {
       uploadBatches: uploadBatches.count,
       paymentErrors: paymentErrors.count,
       paymentBatches: paymentBatches.count,
+      advanceBalances: advanceBalances.count,
       resetTokens: resetTokens.count,
       users: users.count
     };
