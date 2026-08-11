@@ -9,13 +9,14 @@ import { deleteClaimType, saveClaimType } from "@/lib/actions";
 import { UserPermissionPanel } from "@/components/UserPermissionPanel";
 import { EmployeeMasterPanel } from "@/components/EmployeeMasterPanel";
 import { isWorkflowPlaceholderEmployeeId } from "@/lib/employeeUpload";
+import { EmployeeEditorPanel } from "@/components/EmployeeEditorPanel";
 
 export default async function AdminPage({ searchParams }: { searchParams: { error?: string; message?: string } }) {
   const user = await requireSuperAdmin();
   const [claimTypes, batches, employeeUsers] = await Promise.all([
     prisma.claimType.findMany({ where: { isActive: true }, orderBy: { name: "asc" } }),
     prisma.employeeUploadBatch.findMany({ orderBy: { uploadedAt: "desc" }, take: 5, include: { errors: true } }),
-    prisma.user.findMany({ select: { employeeId: true, name: true, email: true, role: true, company: true, location: true, plant: true, costCenter: true, isActive: true, canDownloadNationalReports: true, canUploadPayments: true }, orderBy: { name: "asc" } })
+    prisma.user.findMany({ select: { employeeId: true, name: true, email: true, mobile: true, role: true, company: true, designation: true, location: true, plant: true, costCenter: true, accountsName: true, accountsEmail: true, rmName: true, rmEmail: true, level1Name: true, level1Email: true, level2Name: true, level2Email: true, isActive: true, canDownloadNationalReports: true, canUploadPayments: true }, orderBy: { name: "asc" } })
   ]);
   const realEmployees = employeeUsers.filter((employee) => !isWorkflowPlaceholderEmployeeId(employee.employeeId) && employee.employeeId !== "SUPERADMIN");
   const permissionUsers = realEmployees.filter((employee) => employee.isActive && employee.email);
@@ -25,9 +26,8 @@ export default async function AdminPage({ searchParams }: { searchParams: { erro
       {searchParams.message && <div className="mb-4 rounded border border-green-200 bg-green-50 p-3 text-sm text-green-700">{searchParams.message}</div>}
       <div className="grid gap-4">
         <section className="card">
-          <h2 className="mb-3 font-semibold">Employee Master Upload</h2>
-          <EmployeeUploadPanel />
-          <div className="mt-4 overflow-x-auto"><table><thead><tr><th>File</th><th>Total</th><th>Valid</th><th>Errors</th><th>Imported</th><th>Status</th></tr></thead><tbody>{batches.map((b) => <tr key={b.id}><td>{b.fileName}</td><td>{b.totalRows}</td><td>{b.validRows}</td><td>{b.errorRows}</td><td>{b.importedRows}</td><td>{b.status}</td></tr>)}</tbody></table></div>
+          <h2 className="mb-3 font-semibold">Employee Master</h2>
+          <div className="grid gap-6 xl:grid-cols-2"><div><h3 className="mb-3 font-semibold">Upload</h3><EmployeeUploadPanel /><div className="mt-4 overflow-x-auto"><table><thead><tr><th>File</th><th>Total</th><th>Valid</th><th>Errors</th><th>Imported</th><th>Status</th></tr></thead><tbody>{batches.map((b) => <tr key={b.id}><td>{b.fileName}</td><td>{b.totalRows}</td><td>{b.validRows}</td><td>{b.errorRows}</td><td>{b.importedRows}</td><td>{b.status}</td></tr>)}</tbody></table></div></div><EmployeeEditorPanel users={realEmployees} /></div>
         </section>
       </div>
       <section id="delegated-rights" className="card mt-4 scroll-mt-4">
