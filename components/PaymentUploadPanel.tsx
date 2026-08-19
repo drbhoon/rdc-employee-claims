@@ -11,7 +11,7 @@ type Preview = {
   rows: { rowNumber: number; claimId: string; employeeId: string; paidDate: string; paymentReference: string; netPayable?: number; closingAdvanceBalance?: number }[];
 };
 
-export function PaymentUploadPanel({ from, to }: { from?: string; to?: string }) {
+export function PaymentUploadPanel({ from, to, glCode, glCodes }: { from?: string; to?: string; glCode?: string; glCodes: string[] }) {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [message, setMessage] = useState("");
@@ -20,6 +20,7 @@ export function PaymentUploadPanel({ from, to }: { from?: string; to?: string })
   const downloadQuery = new URLSearchParams();
   if (from) downloadQuery.set("from", from);
   if (to) downloadQuery.set("to", to);
+  if (glCode && glCode !== "ALL") downloadQuery.set("glCode", glCode);
   const downloadHref = `/api/payments/template${downloadQuery.size ? `?${downloadQuery.toString()}` : ""}`;
 
   async function validate() {
@@ -50,13 +51,14 @@ export function PaymentUploadPanel({ from, to }: { from?: string; to?: string })
 
   return (
     <div className="space-y-3">
-      <form action="/payments" className="grid gap-3 md:grid-cols-4">
+      <form action="/payments" className="grid gap-3 md:grid-cols-5">
         <div><label>From Approval Date</label><input type="date" name="from" defaultValue={from || ""} /></div>
         <div><label>To Approval Date</label><input type="date" name="to" defaultValue={to || ""} /></div>
-        <div className="flex flex-wrap items-end gap-2 md:col-span-2"><button className="btn" type="submit">Apply Dates</button><a className="btn-secondary" href="/payments">Clear</a>{!invalidDateRange && <a className="btn-secondary" href={downloadHref}>Download Claims Awaiting Payment</a>}</div>
+        <div><label>GL Code</label><select name="glCode" defaultValue={glCode || "ALL"}><option value="ALL">All GL Codes</option>{glCodes.map((code) => <option key={code} value={code}>{code}</option>)}</select></div>
+        <div className="flex flex-wrap items-end gap-2 md:col-span-2"><button className="btn" type="submit">Apply Filters</button><a className="btn-secondary" href="/payments">Clear</a>{!invalidDateRange && <a className="btn-secondary" href={downloadHref}>Download Claims Awaiting Payment</a>}</div>
       </form>
       {invalidDateRange && <div className="rounded border border-red-200 bg-red-50 p-2 text-sm text-red-700">From date cannot be after To date.</div>}
-      <p className="text-sm text-muted">This file nets reimbursements, Employee Advances, Happay Card Recharges and any carried balance employee-wise. Fill Paid Date to settle every included claim. Payment Reference is optional when Net Payable is zero.</p>
+      <p className="text-sm text-muted">This file nets reimbursements, Employee Advances, Happay Card Recharges and any carried balance employee-wise. A GL filter selects claims containing that GL; the full approved claim amount remains payable for safe settlement. Fill Paid Date to settle every included claim.</p>
       <div><label>Completed CSV/Excel File</label><input type="file" accept=".csv,.xlsx,.xls" onChange={(event) => { setFile(event.target.files?.[0] || null); setPreview(null); setMessage(""); }} /></div>
       <div className="flex gap-2"><button className="btn-secondary" type="button" disabled={!file || busy} onClick={validate}>Validate Preview</button><button className="btn" type="button" disabled={!preview || preview.errorRows > 0 || busy} onClick={apply}>Mark Valid Claims Paid</button></div>
       {message && <div className="rounded border border-line bg-panel p-2 text-sm">{message}</div>}

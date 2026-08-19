@@ -2,7 +2,7 @@ import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 import { Role } from "@prisma/client";
 import { getSession, isSuperAdmin, superadminEmail } from "@/lib/auth";
-import { clean, cleanEmail, isWorkflowPlaceholderEmployeeId, validateRows, type EmployeeUploadRow } from "@/lib/employeeUpload";
+import { clean, cleanEmail, isWorkflowPlaceholderEmployeeId, normalizeEmployeeName, validateRows, type EmployeeUploadRow } from "@/lib/employeeUpload";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(request: Request) {
@@ -26,20 +26,25 @@ export async function POST(request: Request) {
   const email = cleanEmail(row.login_id);
   const role = clean(row.role || "EMPLOYEE").toUpperCase() as Role;
   const password = clean(body.password) || process.env.DEFAULT_EMPLOYEE_PASSWORD || "Welcome@123";
-  const passwordHash = await bcrypt.hash(password, 12);
+  let passwordHash = await bcrypt.hash(password, 12);
+  let mustChangePassword = true;
   try {
     await prisma.$transaction(async (tx) => {
       const emailOwner = await tx.user.findUnique({ where: { email } });
-      if (emailOwner && isWorkflowPlaceholderEmployeeId(emailOwner.employeeId)) {
+      if (emailOwner && (isWorkflowPlaceholderEmployeeId(emailOwner.employeeId) || normalizeEmployeeName(emailOwner.name) === normalizeEmployeeName(row.employee_name))) {
+        if (!clean(body.password)) {
+          passwordHash = emailOwner.passwordHash;
+          mustChangePassword = emailOwner.mustChangePassword;
+        }
         const claimCount = await tx.claimHeader.count({ where: { employeeId: emailOwner.employeeId } });
         if (claimCount === 0) {
-          await tx.user.update({ where: { id: emailOwner.id }, data: employeeData(row, role, email, passwordHash, employeeId) });
+          await tx.user.update({ where: { id: emailOwner.id }, data: employeeData(row, role, email, passwordHash, employeeId, mustChangePassword) });
         } else {
           await tx.user.update({ where: { id: emailOwner.id }, data: { email: null, isActive: false } });
-          await tx.user.create({ data: employeeData(row, role, email, passwordHash, employeeId) });
+          await tx.user.create({ data: employeeData(row, role, email, passwordHash, employeeId, mustChangePassword) });
         }
       } else {
-        await tx.user.create({ data: employeeData(row, role, email, passwordHash, employeeId) });
+        await tx.user.create({ data: employeeData(row, role, email, passwordHash, employeeId, mustChangePassword) });
       }
       await ensureWorkflowLogin(tx, clean(row.accounts_name), cleanEmail(row.accounts_email), "ACCOUNTS", passwordHash);
       if (cleanEmail(row.rm_email)) await ensureWorkflowLogin(tx, clean(row.rm_name) || "RM", cleanEmail(row.rm_email), "APPROVER", passwordHash);
@@ -53,14 +58,14 @@ export async function POST(request: Request) {
   }
 }
 
-function employeeData(row: EmployeeUploadRow, role: Role, email: string, passwordHash: string, employeeId: string) {
+function employeeData(row: EmployeeUploadRow, role: Role, email: string, passwordHash: string, employeeId: string, mustChangePassword: boolean) {
   return {
     employeeId, name: clean(row.employee_name), email, mobile: clean(row.mobile) || null, passwordHash, role,
     company: clean(row.company) || null, designation: clean(row.designation) || null, location: clean(row.location) || null,
     plant: clean(row.plant) || null, costCenter: clean(row.cost_center) || null, accountsName: clean(row.accounts_name),
     accountsEmail: cleanEmail(row.accounts_email), rmName: clean(row.rm_name) || null, rmEmail: cleanEmail(row.rm_email) || null,
     level1Name: clean(row.level1_name) || null, level1Email: cleanEmail(row.level1_email) || null,
-    level2Name: clean(row.level2_name), level2Email: cleanEmail(row.level2_email), isActive: Boolean(row.is_active), mustChangePassword: true
+    level2Name: clean(row.level2_name), level2Email: cleanEmail(row.level2_email), isActive: Boolean(row.is_active), mustChangePassword
   };
 }
 

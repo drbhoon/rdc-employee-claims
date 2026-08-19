@@ -2,7 +2,7 @@ import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 import { Role } from "@prisma/client";
 import { getSession, isSuperAdmin, superadminEmail } from "@/lib/auth";
-import { clean, cleanEmail, isWorkflowPlaceholderEmployeeId, normalizeBool, parseEmployeeUpload, validateRows, type EmployeeUploadRow } from "@/lib/employeeUpload";
+import { clean, cleanEmail, isWorkflowPlaceholderEmployeeId, normalizeBool, normalizeEmployeeName, parseEmployeeUpload, validateRows, type EmployeeUploadRow } from "@/lib/employeeUpload";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(request: Request) {
@@ -35,19 +35,19 @@ export async function POST(request: Request) {
       }
 
       const loginId = cleanEmail(row.login_id);
-      await releaseReservedLogin(loginId, employeeId);
+      const transferredLogin = await releaseReusableLogin(loginId, employeeId, clean(row.employee_name));
       const rowPassword = clean(row.password);
-      const passwordHash = rowPassword ? await bcrypt.hash(rowPassword, 12) : defaultPasswordHash;
+      const passwordHash = rowPassword ? await bcrypt.hash(rowPassword, 12) : transferredLogin?.passwordHash || defaultPasswordHash;
       const role = uploadRole(row, loginId);
       const baseData = employeeData(row, role, loginId);
-      const updateData = rowPassword ? { ...baseData, passwordHash, mustChangePassword: true } : baseData;
+      const updateData = rowPassword ? { ...baseData, passwordHash, mustChangePassword: true } : transferredLogin ? { ...baseData, passwordHash, mustChangePassword: transferredLogin.mustChangePassword } : baseData;
       await prisma.user.upsert({
         where: { employeeId },
         create: {
           employeeId,
           ...baseData,
           passwordHash,
-          mustChangePassword: true
+          mustChangePassword: rowPassword ? true : transferredLogin?.mustChangePassword ?? true
         },
         update: updateData
       });
@@ -102,11 +102,13 @@ function employeeData(row: EmployeeUploadRow, role: Role, loginId: string) {
   };
 }
 
-async function releaseReservedLogin(email: string, employeeId: string) {
+async function releaseReusableLogin(email: string, employeeId: string, employeeName: string) {
   if (!email || employeeId === "SUPERADMIN") return;
   const owner = await prisma.user.findUnique({ where: { email } });
   if (!owner || owner.employeeId === employeeId) return;
-  if (owner.employeeId !== "SUPERADMIN" && !isWorkflowPlaceholderEmployeeId(owner.employeeId)) return;
+  const isPlaceholder = isWorkflowPlaceholderEmployeeId(owner.employeeId);
+  if (owner.employeeId === "SUPERADMIN") return;
+  if (!isPlaceholder && normalizeEmployeeName(owner.name) !== normalizeEmployeeName(employeeName)) return;
 
   const targetEmployee = await prisma.user.findUnique({ where: { employeeId } });
   const fallbackClaimCount = await prisma.claimHeader.count({ where: { employeeId: owner.employeeId } });
@@ -115,7 +117,7 @@ async function releaseReservedLogin(email: string, employeeId: string) {
       where: { id: owner.id },
       data: { employeeId }
     });
-    return;
+    return { passwordHash: owner.passwordHash, mustChangePassword: owner.mustChangePassword };
   }
 
   await prisma.user.update({
@@ -125,6 +127,7 @@ async function releaseReservedLogin(email: string, employeeId: string) {
       isActive: false
     }
   });
+  return { passwordHash: owner.passwordHash, mustChangePassword: owner.mustChangePassword };
 }
 
 async function ensureWorkflowLogin(name: string, email: string, role: "ACCOUNTS" | "APPROVER", defaultPasswordHash: string) {

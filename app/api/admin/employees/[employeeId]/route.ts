@@ -2,7 +2,7 @@ import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 import { Role } from "@prisma/client";
 import { getSession, isSuperAdmin, superadminEmail } from "@/lib/auth";
-import { clean, cleanEmail, isWorkflowPlaceholderEmployeeId, validateRows, type EmployeeUploadRow } from "@/lib/employeeUpload";
+import { clean, cleanEmail, isWorkflowPlaceholderEmployeeId, normalizeEmployeeName, validateRows, type EmployeeUploadRow } from "@/lib/employeeUpload";
 import { prisma } from "@/lib/prisma";
 
 export async function PUT(request: Request, { params }: { params: { employeeId: string } }) {
@@ -31,7 +31,7 @@ export async function PUT(request: Request, { params }: { params: { employeeId: 
   try {
     await prisma.$transaction(async (tx) => {
       const emailOwner = await tx.user.findUnique({ where: { email } });
-      if (emailOwner && emailOwner.employeeId !== employeeId && isWorkflowPlaceholderEmployeeId(emailOwner.employeeId)) {
+      if (emailOwner && emailOwner.employeeId !== employeeId && (isWorkflowPlaceholderEmployeeId(emailOwner.employeeId) || normalizeEmployeeName(emailOwner.name) === normalizeEmployeeName(row.employee_name))) {
         await tx.user.update({ where: { id: emailOwner.id }, data: { email: null, isActive: false } });
       }
       await tx.user.update({ where: { employeeId }, data: {

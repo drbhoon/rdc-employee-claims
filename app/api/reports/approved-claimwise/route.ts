@@ -10,12 +10,15 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const from = searchParams.get("from");
   const to = searchParams.get("to");
+  const glCode = searchParams.get("glCode");
   if (invalidPaymentDateRange(from, to)) return new Response("From date cannot be after To date.", { status: 400 });
   const finalApprovedAt = paymentApprovalDateRange(from, to);
+  const selectedGlCode = glCode && glCode !== "ALL" ? glCode : null;
   const claims = await prisma.claimHeader.findMany({
     where: {
       currentStatus: "FINAL_APPROVED",
       ...(finalApprovedAt ? { finalApprovedAt } : {}),
+      ...(selectedGlCode ? { lines: { some: { claimType: { glCode: selectedGlCode } } } } : {}),
       ...(!nationalAccess ? { history: { some: { action: "ACCOUNTS_PASS", actionByEmployeeId: user.employeeId } } } : {})
     },
     include: { lines: { include: { claimType: true } } },
@@ -24,5 +27,6 @@ export async function GET(request: Request) {
   const balanceRows = await prisma.employeeAdvanceBalance.findMany({ where: { employeeId: { in: [...new Set(claims.map((claim) => claim.employeeId))] } } });
   const balances = new Map(balanceRows.map((row) => [row.employeeId.toLowerCase(), Number(row.balance)]));
   const scope = nationalAccess ? "national" : "my-cleared";
-  return csvResponse(`${scope}-approved-claims-payment${paymentPeriodSuffix(from, to)}.csv`, paymentReportRows(employeePaymentRows(claims, balances)), paymentReportHeaders);
+  const glSuffix = selectedGlCode ? `-gl-${selectedGlCode.replace(/[^A-Za-z0-9_-]/g, "-")}` : "";
+  return csvResponse(`${scope}-approved-claims-payment${paymentPeriodSuffix(from, to)}${glSuffix}.csv`, paymentReportRows(employeePaymentRows(claims, balances)), paymentReportHeaders);
 }

@@ -149,7 +149,7 @@ export async function validateRows(rows: EmployeeUploadRow[]) {
   const errors: { rowNumber: number; employeeId?: string; errorMessage: string }[] = [];
   const valid: EmployeeUploadRow[] = [];
   const deleteIds: string[] = [];
-  const loginRows: { rowNumber: number; employeeId: string; loginId: string }[] = [];
+  const loginRows: { rowNumber: number; employeeId: string; employeeName: string; loginId: string }[] = [];
 
   rows.forEach((row, idx) => {
     const rowNumber = idx + 2;
@@ -188,7 +188,7 @@ export async function validateRows(rows: EmployeeUploadRow[]) {
     if (employeeId) seenEmployees.add(employeeId);
     if (loginId) seenLoginIds.add(loginId);
     if (action === "DELETE" && employeeId) deleteIds.push(employeeId);
-    if (employeeId && loginId && action !== "DELETE") loginRows.push({ rowNumber, employeeId, loginId });
+    if (employeeId && loginId && action !== "DELETE") loginRows.push({ rowNumber, employeeId, employeeName: clean(row.employee_name), loginId });
 
     if (rowErrors.length) errors.push({ rowNumber, employeeId, errorMessage: rowErrors.join("; ") });
     else valid.push(row);
@@ -223,21 +223,22 @@ export async function validateRows(rows: EmployeeUploadRow[]) {
   if (loginRows.length) {
     const existingLoginUsers = await prisma.user.findMany({
       where: { email: { in: loginRows.map((row) => row.loginId) } },
-      select: { employeeId: true, email: true }
+      select: { employeeId: true, email: true, name: true }
     });
-    const ownerByEmail = new Map(existingLoginUsers.map((user) => [user.email?.toLowerCase(), user.employeeId]));
+    const ownerByEmail = new Map(existingLoginUsers.map((user) => [user.email?.toLowerCase(), user]));
     loginRows.forEach((row) => {
-      const ownerEmployeeId = ownerByEmail.get(row.loginId);
+      const owner = ownerByEmail.get(row.loginId);
       if (
-        ownerEmployeeId &&
-        ownerEmployeeId !== row.employeeId &&
-        ownerEmployeeId !== "SUPERADMIN" &&
-        !isWorkflowPlaceholderEmployeeId(ownerEmployeeId)
+        owner &&
+        owner.employeeId !== row.employeeId &&
+        owner.employeeId !== "SUPERADMIN" &&
+        !isWorkflowPlaceholderEmployeeId(owner.employeeId) &&
+        normalizeEmployeeName(owner.name) !== normalizeEmployeeName(row.employeeName)
       ) {
         errors.push({
           rowNumber: row.rowNumber,
           employeeId: row.employeeId,
-          errorMessage: `login_id already belongs to employee_id ${ownerEmployeeId}.`
+          errorMessage: `login_id already belongs to employee_id ${owner.employeeId} with a different employee name.`
         });
       }
     });
@@ -248,6 +249,10 @@ export async function validateRows(rows: EmployeeUploadRow[]) {
     valid: valid.filter((row) => !blocked.has(`${rows.indexOf(row) + 2}:${clean(row.employee_id)}`)),
     errors
   };
+}
+
+export function normalizeEmployeeName(value: unknown) {
+  return clean(value).toLowerCase().replace(/[^a-z0-9]+/g, "");
 }
 
 export function isWorkflowPlaceholderEmployeeId(employeeId: string) {

@@ -41,6 +41,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: { fr
   const claimWiseQuery = new URLSearchParams();
   if (searchParams.from) claimWiseQuery.set("from", searchParams.from);
   if (searchParams.to) claimWiseQuery.set("to", searchParams.to);
+  if (selectedGlCode !== "ALL") claimWiseQuery.set("glCode", selectedGlCode);
   const claimWiseHref = `/api/reports/approved-claimwise${claimWiseQuery.size ? `?${claimWiseQuery.toString()}` : ""}`;
 
   const [byStatus, byEmployee, pending, rejected, approvedClaims, claimTypes] = await Promise.all([
@@ -76,7 +77,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: { fr
             <a className="btn whitespace-nowrap" href={claimWiseHref}>{nationalAccess ? "Download Approved Claims - Claim ID Wise" : "Download My Cleared Claims - Claim ID Wise"}</a>
           </div>
         </div>
-        <p className="text-xs text-muted md:col-span-5">Both downloads use final approval date. The GL-wise report applies the selected GL code; the Claim ID-wise payment report ignores GL code and includes one row per claim awaiting payment. Accounts without national rights receive only claims they cleared.</p>
+        <p className="text-xs text-muted md:col-span-5">Both downloads use final approval date and the selected GL code. The Claim ID-wise payment report includes claims containing that GL and retains each claim's full approved amount for settlement. Accounts without national rights receive only claims they cleared.</p>
       </form>
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="card"><h2 className="mb-3 font-semibold">Claim Status Report</h2><table><thead><tr><th>Status</th><th>Count</th></tr></thead><tbody>{byStatus.map((r) => <tr key={r.currentStatus}><td>{statusLabel(r.currentStatus)}</td><td>{r._count}</td></tr>)}</tbody></table></section>
