@@ -4,10 +4,15 @@ import { claimEmailHtml, sendMail } from "@/lib/email";
 
 export async function nextClaimId() {
   const year = new Date().getFullYear();
-  const count = await prisma.claimHeader.count({
-    where: { claimId: { startsWith: `CLM-${year}-` } }
+  const prefix = `CLM-${year}-`;
+  const latest = await prisma.claimHeader.findFirst({
+    where: { claimId: { startsWith: prefix } },
+    select: { claimId: true },
+    orderBy: { claimId: "desc" }
   });
-  return `CLM-${year}-${String(count + 1).padStart(6, "0")}`;
+  const latestSequence = latest ? Number(latest.claimId.slice(prefix.length)) : 0;
+  const nextSequence = Number.isSafeInteger(latestSequence) ? latestSequence + 1 : 1;
+  return `${prefix}${String(nextSequence).padStart(6, "0")}`;
 }
 
 export async function findApprovalRule(totalAmount: number) {

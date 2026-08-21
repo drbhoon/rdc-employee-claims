@@ -10,6 +10,7 @@ import { UserPermissionPanel } from "@/components/UserPermissionPanel";
 import { EmployeeMasterPanel } from "@/components/EmployeeMasterPanel";
 import { isWorkflowPlaceholderEmployeeId } from "@/lib/employeeUpload";
 import { EmployeeEditorPanel } from "@/components/EmployeeEditorPanel";
+import { PendingClaimRecoveryPanel } from "@/components/PendingClaimRecoveryPanel";
 
 export default async function AdminPage({ searchParams }: { searchParams: { error?: string; message?: string } }) {
   const user = await requireSuperAdmin();
@@ -33,6 +34,10 @@ export default async function AdminPage({ searchParams }: { searchParams: { erro
       <section id="delegated-rights" className="card mt-4 scroll-mt-4">
         <h2 className="mb-3 font-semibold">Delegated Report and Payment Rights</h2>
         <UserPermissionPanel users={permissionUsers} message={searchParams.message} />
+      </section>
+      <section className="card mt-4">
+        <h2 className="mb-3 font-semibold">Pending Claim Recovery</h2>
+        <PendingClaimRecoveryPanel />
       </section>
       <section className="card mt-4">
         <h2 className="mb-3 font-semibold">Email Test</h2>
