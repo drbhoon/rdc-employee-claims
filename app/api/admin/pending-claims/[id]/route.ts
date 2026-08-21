@@ -20,7 +20,18 @@ export async function DELETE(_request: Request, { params }: { params: { id: stri
   }
 
   const storedFiles = claim.lines.flatMap((line) => line.attachments.map((attachment) => attachment.fileUrl));
-  await prisma.claimHeader.delete({ where: { id: claim.id } });
+  try {
+    await prisma.claimHeader.delete({ where: { id: claim.id } });
+  } catch (error) {
+    console.error("Pending claim recovery database deletion failed", {
+      claimId: claim.claimId,
+      employeeId: claim.employeeId,
+      currentStatus: claim.currentStatus,
+      deletedBy: session.employeeId,
+      error
+    });
+    return NextResponse.json({ error: `Unable to delete ${claim.claimId} from the database. No claim data was removed. Please share the server log with support.` }, { status: 500 });
+  }
   const failedFiles: string[] = [];
   for (const fileUrl of storedFiles) {
     const storedName = path.basename(fileUrl);
