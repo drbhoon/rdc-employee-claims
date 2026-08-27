@@ -28,7 +28,7 @@ export async function POST(request: Request) {
     const missing = row.claimIds.filter((id) => !claims.some((claim) => claim.claimId.toLowerCase() === id.toLowerCase()));
     const invalid = claims.find((claim) => claim.employeeId.toLowerCase() !== row.employeeId.toLowerCase() || claim.currentStatus !== "FINAL_APPROVED");
     if (missing.length) errors.push({ rowNumber: row.rowNumber, claimId: row.claimId, employeeId: row.employeeId, errorMessage: `Claim ID(s) not found: ${missing.join(", ")}.` });
-    else if (invalid) errors.push({ rowNumber: row.rowNumber, claimId: invalid.claimId, employeeId: row.employeeId, errorMessage: invalid.employeeId.toLowerCase() !== row.employeeId.toLowerCase() ? `Employee ID does not match claim owner ${invalid.employeeId}.` : `Only Final Approved claims can be settled; current status is ${invalid.currentStatus}.` });
+    else if (invalid) errors.push({ rowNumber: row.rowNumber, claimId: invalid.claimId, employeeId: row.employeeId, errorMessage: invalid.employeeId.toLowerCase() !== row.employeeId.toLowerCase() ? `Employee Code does not match claim owner ${invalid.employeeId}.` : `Only Final Approved claims can be settled; current status is ${invalid.currentStatus}.` });
     else {
       const balance = await prisma.employeeAdvanceBalance.findUnique({ where: { employeeId: claims[0].employeeId } });
       const calculated = employeePaymentRows(claims, new Map([[row.employeeId.toLowerCase(), Number(balance?.balance || 0)]]))[0];

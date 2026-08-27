@@ -1,4 +1,4 @@
-export const paymentReportHeaders = ["Claim IDs", "Employee ID", "Employee Name", "Reimbursements", "Advances", "Opening Advance Balance", "Net Payable", "Closing Advance Balance", "Approval Date", "Paid Date", "Payment Reference", "Payment Remarks"];
+export const paymentReportHeaders = ["Claim IDs", "Employee Code", "Employee Name", "Reimbursements", "Advances", "Opening Advance Balance", "Net Payable", "Closing Advance Balance", "Approval Date", "Paid Date", "Payment Reference", "Payment Remarks"];
 
 export type PaymentReportClaim = {
   claimId: string;
@@ -69,7 +69,7 @@ export function employeePaymentRows(claims: PaymentReportClaim[], balances: Map<
 export function paymentReportRows(rows: EmployeePaymentRow[]) {
   return rows.map((row) => ({
     "Claim IDs": row.claimIds.join("; "),
-    "Employee ID": row.employeeId,
+    "Employee Code": row.employeeId,
     "Employee Name": row.employeeName,
     "Reimbursements": row.reimbursements.toFixed(2),
     "Advances": (-row.advances).toFixed(2),

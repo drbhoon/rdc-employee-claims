@@ -34,7 +34,7 @@ export async function GET(request: Request) {
   });
   const rows: Record<string, unknown>[] = claims.flatMap((claim) => claim.lines.map((line) => ({
     "Claim ID": claim.claimId,
-    "Employee ID": claim.employeeId,
+    "Employee Code": claim.employeeId,
     "Employee Name": claim.employeeName,
     Company: claim.company,
     Designation: claim.designation,
@@ -64,7 +64,7 @@ export async function GET(request: Request) {
   });
   summary.forEach((amount, key) => {
     const [cc, type, glCode] = key.split("|");
-    rows.push({ "Claim ID": "SUMMARY", "Employee ID": "", "Employee Name": "", Company: "", Designation: "", Location: "", Plant: "", "Cost Center": cc, "Claim Type": type, "GL Code": glCode, "Claim Date": "", Description: "Cost-wise summary", Amount: amount.toFixed(2), "GST Amount": "", "Vendor Name": "", "Bill Number": "", "Accounts Cleared By": "", "Accounts Cleared Date": "", "Approval Date": "", "Final Status": "", "Paid Date": "", "Payment Reference": "", "Payment Remarks": "" });
+    rows.push({ "Claim ID": "SUMMARY", "Employee Code": "", "Employee Name": "", Company: "", Designation: "", Location: "", Plant: "", "Cost Center": cc, "Claim Type": type, "GL Code": glCode, "Claim Date": "", Description: "Cost-wise summary", Amount: amount.toFixed(2), "GST Amount": "", "Vendor Name": "", "Bill Number": "", "Accounts Cleared By": "", "Accounts Cleared Date": "", "Approval Date": "", "Final Status": "", "Paid Date": "", "Payment Reference": "", "Payment Remarks": "" });
   });
   const period = from || to ? `-${from || "start"}-to-${to || "latest"}` : "";
   const glSuffix = glCode && glCode !== "ALL" ? `-gl-${glCode.replace(/[^A-Za-z0-9_-]/g, "-")}` : "";

@@ -1,4 +1,5 @@
 import * as XLSX from "xlsx";
+import { normalizeEmployeeCode } from "@/lib/employeeCode";
 
 export type PaymentUploadRow = {
   rowNumber: number;
@@ -46,24 +47,27 @@ export function parsePaymentUpload(buffer: Buffer) {
   const workbook = XLSX.read(buffer, { type: "buffer", cellDates: true });
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
   const rawRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "", raw: true });
+  const formattedRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "", raw: false });
   const rows: PaymentUploadRow[] = [];
   const errors: PaymentUploadRowError[] = [];
   const grouped = new Map<string, PaymentUploadRow>();
 
   rawRows.forEach((raw, index) => {
     const normalized = Object.fromEntries(Object.entries(raw).map(([header, value]) => [key(header), value]));
+    const formatted = formattedRows[index] || {};
+    const formattedNormalized = Object.fromEntries(Object.entries(formatted).map(([header, value]) => [key(header), value]));
     const rowNumber = index + 2;
     const claimIdsText = text(normalized.claim_ids || normalized.claim_id);
     const claimIds = claimIdsText.split(/[;,]/).map((value) => value.trim()).filter(Boolean);
     const claimId = claimIds.join("; ");
-    const employeeId = text(normalized.employee_id || normalized.employee_code);
+    const employeeId = normalizeEmployeeCode(formattedNormalized.employee_code || formattedNormalized.employee_id || normalized.employee_code || normalized.employee_id);
     const rawPaidDate = normalized.paid_date || normalized.payment_date;
     const paidDate = isoDate(rawPaidDate);
     const paymentReference = text(normalized.payment_reference || normalized.utr_reference || normalized.utr);
     const paymentRemarks = text(normalized.payment_remarks || normalized.remarks);
     if (!claimId || claimId.toUpperCase() === "SUMMARY" || !text(rawPaidDate)) return;
     const row = { rowNumber, claimId, claimIds, employeeId, paidDate, paymentReference, paymentRemarks };
-    if (!employeeId) errors.push({ rowNumber, claimId, employeeId: null, errorMessage: "Employee ID is required." });
+    if (!employeeId) errors.push({ rowNumber, claimId, employeeId: null, errorMessage: "Employee Code is required." });
     if (!paidDate) errors.push({ rowNumber, claimId, employeeId: employeeId || null, errorMessage: "Paid Date must be YYYY-MM-DD or DD/MM/YYYY." });
     const existing = grouped.get(claimIds.map((id) => id.toLowerCase()).sort().join("|"));
     if (existing) {

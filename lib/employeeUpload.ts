@@ -1,6 +1,7 @@
 import { ClaimStatus, Role } from "@prisma/client";
 import * as XLSX from "xlsx";
 import { uploadColumns } from "@/lib/constants";
+import { normalizeEmployeeCode } from "@/lib/employeeCode";
 import { prisma } from "@/lib/prisma";
 
 export type EmployeeUploadAction = "ADD" | "UPDATE" | "DELETE";
@@ -43,7 +44,7 @@ const openClaimStatuses: ClaimStatus[] = [
 ];
 
 export function clean(value: unknown) {
-  const text = String(value || "").trim();
+  const text = value == null ? "" : String(value).trim();
   return text === "-" ? "" : text;
 }
 
@@ -54,14 +55,16 @@ export function cleanEmail(value: unknown) {
 export function parseEmployeeUpload(buffer: Buffer) {
   const workbook = XLSX.read(buffer, { type: "buffer" });
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  return XLSX.utils.sheet_to_json<EmployeeUploadRow>(sheet, { defval: "" }).filter(isMeaningfulUploadRow);
+  // Employee Codes are identifiers. Formatted text preserves leading zeroes
+  // from Excel cells instead of coercing numeric-looking codes to numbers.
+  return XLSX.utils.sheet_to_json<EmployeeUploadRow>(sheet, { defval: "", raw: false }).filter(isMeaningfulUploadRow);
 }
 
 export function buildTemplateWorkbook() {
   const worksheet = XLSX.utils.json_to_sheet([
     {
       action: "ADD",
-      employee_id: "EMP002",
+      employee_id: "001234",
       employee_name: "Sample Employee",
       login_id: "employee@example.com",
       password: "Welcome@123",
@@ -84,7 +87,7 @@ export function buildTemplateWorkbook() {
     },
     {
       action: "UPDATE",
-      employee_id: "EMP002",
+      employee_id: "001234",
       employee_name: "Sample Employee Updated",
       login_id: "employee@example.com",
       password: "",
@@ -129,6 +132,16 @@ export function buildTemplateWorkbook() {
       is_active: "false"
     }
   ], { header: uploadColumns });
+  const employeeCodeColumn = uploadColumns.indexOf("employee_id");
+  const range = XLSX.utils.decode_range(worksheet["!ref"] || "A1:A1");
+  for (let row = range.s.r + 1; row <= range.e.r; row += 1) {
+    const address = XLSX.utils.encode_cell({ r: row, c: employeeCodeColumn });
+    if (worksheet[address]) {
+      worksheet[address].t = "s";
+      worksheet[address].z = "@";
+    }
+  }
+  worksheet["!cols"] = uploadColumns.map((column) => ({ wch: column === "employee_id" ? 20 : 24 }));
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, "employees");
   return XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
@@ -154,7 +167,7 @@ export async function validateRows(rows: EmployeeUploadRow[]) {
   rows.forEach((row, idx) => {
     const rowNumber = idx + 2;
     const rowErrors: string[] = [];
-    const employeeId = clean(row.employee_id);
+    const employeeId = normalizeEmployeeCode(row.employee_id);
     const action = clean(row.action || "ADD").toUpperCase();
     const loginId = cleanEmail(row.login_id);
     const accountsEmail = cleanEmail(row.accounts_email);
@@ -203,7 +216,7 @@ export async function validateRows(rows: EmployeeUploadRow[]) {
     deleteIds
       .filter((employeeId) => !existingDeleteIds.has(employeeId))
       .forEach((employeeId) => {
-        const rowNumber = rows.findIndex((row) => clean(row.employee_id) === employeeId) + 2;
+        const rowNumber = rows.findIndex((row) => normalizeEmployeeCode(row.employee_id) === employeeId) + 2;
         errors.push({ rowNumber, employeeId, errorMessage: "DELETE blocked: employee_id does not exist." });
       });
     const openClaims = await prisma.claimHeader.findMany({
@@ -211,7 +224,7 @@ export async function validateRows(rows: EmployeeUploadRow[]) {
       select: { employeeId: true, claimId: true, currentStatus: true }
     });
     openClaims.forEach((claim) => {
-      const rowNumber = rows.findIndex((row) => clean(row.employee_id) === claim.employeeId) + 2;
+      const rowNumber = rows.findIndex((row) => normalizeEmployeeCode(row.employee_id) === claim.employeeId) + 2;
       errors.push({
         rowNumber,
         employeeId: claim.employeeId,
@@ -246,7 +259,7 @@ export async function validateRows(rows: EmployeeUploadRow[]) {
 
   const blocked = new Set(errors.map((error) => `${error.rowNumber}:${error.employeeId || ""}`));
   return {
-    valid: valid.filter((row) => !blocked.has(`${rows.indexOf(row) + 2}:${clean(row.employee_id)}`)),
+    valid: valid.filter((row) => !blocked.has(`${rows.indexOf(row) + 2}:${normalizeEmployeeCode(row.employee_id)}`)),
     errors
   };
 }

@@ -54,6 +54,7 @@ export function EmployeeUploadPanel() {
       <div><a className="btn-secondary" href="/api/employee-upload/template">Download Template</a></div>
       <div><label>Default Password For New Employees</label><input value={defaultPassword} onChange={(e) => setDefaultPassword(e.target.value)} placeholder="Welcome@123" /></div>
       <div><label>Excel/CSV File</label><input type="file" accept=".xlsx,.xls,.csv" onChange={(e) => { setFile(e.target.files?.[0] || null); setPreview(null); setMessage(""); }} /></div>
+      <p className="text-sm text-muted">Employee Code is stored as text. Keep the spreadsheet column formatted as Text to preserve leading zeroes.</p>
       <div className="flex gap-2">
         <button type="button" className="btn-secondary" disabled={!file || busy} onClick={() => postUpload("/api/employee-upload/preview")}>Validate Preview</button>
         <button type="button" className="btn" disabled={!file || busy || !preview || preview.errorRows > 0} onClick={() => postUpload("/api/employee-upload/import")}>Import Valid Records</button>
@@ -66,7 +67,7 @@ export function EmployeeUploadPanel() {
             <div className="rounded border border-line p-2">Errors: <strong>{preview.errorRows}</strong></div>
             <div className="rounded border border-line p-2">Total: <strong>{preview.totalRows}</strong></div>
           </div>
-          {preview.errors.length > 0 && <table><thead><tr><th>Row</th><th>Employee ID</th><th>Error</th></tr></thead><tbody>{preview.errors.map((e) => <tr key={`${e.rowNumber}-${e.errorMessage}`}><td>{e.rowNumber}</td><td>{e.employeeId || "-"}</td><td>{e.errorMessage}</td></tr>)}</tbody></table>}
+          {preview.errors.length > 0 && <table><thead><tr><th>Row</th><th>Employee Code</th><th>Error</th></tr></thead><tbody>{preview.errors.map((e) => <tr key={`${e.rowNumber}-${e.errorMessage}`}><td>{e.rowNumber}</td><td>{e.employeeId || "-"}</td><td>{e.errorMessage}</td></tr>)}</tbody></table>}
         </div>
       )}
     </div>

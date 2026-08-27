@@ -4,6 +4,7 @@ import { Role } from "@prisma/client";
 import { getSession, isSuperAdmin, superadminEmail } from "@/lib/auth";
 import { clean, cleanEmail, isWorkflowPlaceholderEmployeeId, normalizeBool, normalizeEmployeeName, parseEmployeeUpload, validateRows, type EmployeeUploadRow } from "@/lib/employeeUpload";
 import { prisma } from "@/lib/prisma";
+import { normalizeEmployeeCode } from "@/lib/employeeCode";
 
 export async function POST(request: Request) {
   let currentRow = 0;
@@ -26,7 +27,7 @@ export async function POST(request: Request) {
     for (const [index, row] of valid.entries()) {
       currentRow = rows.indexOf(row) + 2 || index + 2;
       const action = clean(row.action || "ADD").toUpperCase();
-      const employeeId = clean(row.employee_id);
+      const employeeId = normalizeEmployeeCode(row.employee_id);
       currentEmployeeId = employeeId;
       if (action === "DELETE") {
         await prisma.user.update({ where: { employeeId }, data: { isActive: false } });
@@ -57,7 +58,7 @@ export async function POST(request: Request) {
 
     for (const [index, row] of workflowRows.entries()) {
       currentRow = rows.indexOf(row) + 2 || index + 2;
-      currentEmployeeId = clean(row.employee_id);
+      currentEmployeeId = normalizeEmployeeCode(row.employee_id);
       await ensureWorkflowLogin(clean(row.accounts_name), cleanEmail(row.accounts_email), "ACCOUNTS", defaultPasswordHash);
       if (cleanEmail(row.rm_email)) await ensureWorkflowLogin(clean(row.rm_name) || "RM", cleanEmail(row.rm_email), "APPROVER", defaultPasswordHash);
       if (cleanEmail(row.level1_email)) await ensureWorkflowLogin(clean(row.level1_name), cleanEmail(row.level1_email), "APPROVER", defaultPasswordHash);

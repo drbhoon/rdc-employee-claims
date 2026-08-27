@@ -2,13 +2,14 @@ import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 import { Role } from "@prisma/client";
 import { getSession, isSuperAdmin, superadminEmail } from "@/lib/auth";
+import { normalizeEmployeeCode } from "@/lib/employeeCode";
 import { clean, cleanEmail, isWorkflowPlaceholderEmployeeId, normalizeEmployeeName, validateRows, type EmployeeUploadRow } from "@/lib/employeeUpload";
 import { prisma } from "@/lib/prisma";
 
 export async function PUT(request: Request, { params }: { params: { employeeId: string } }) {
   const session = await getSession();
   if (!session || !isSuperAdmin(session)) return NextResponse.json({ error: "Only superadmin can edit employee master data." }, { status: 403 });
-  const employeeId = decodeURIComponent(params.employeeId).trim();
+  const employeeId = normalizeEmployeeCode(decodeURIComponent(params.employeeId));
   if (!employeeId || employeeId === "SUPERADMIN" || isWorkflowPlaceholderEmployeeId(employeeId)) return NextResponse.json({ error: "This Employee Code cannot be edited here." }, { status: 400 });
   const body = await request.json();
   const row: EmployeeUploadRow = {

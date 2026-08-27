@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 import { Role } from "@prisma/client";
 import { getSession, isSuperAdmin, superadminEmail } from "@/lib/auth";
+import { normalizeEmployeeCode } from "@/lib/employeeCode";
 import { clean, cleanEmail, isWorkflowPlaceholderEmployeeId, normalizeEmployeeName, validateRows, type EmployeeUploadRow } from "@/lib/employeeUpload";
 import { prisma } from "@/lib/prisma";
 
@@ -9,7 +10,7 @@ export async function POST(request: Request) {
   const session = await getSession();
   if (!session || !isSuperAdmin(session)) return NextResponse.json({ error: "Only superadmin can add employee master data." }, { status: 403 });
   const body = await request.json();
-  const employeeId = clean(body.employeeId);
+  const employeeId = normalizeEmployeeCode(body.employeeId);
   const row: EmployeeUploadRow = {
     action: "ADD", employee_id: employeeId, employee_name: body.name, login_id: body.email, password: body.password,
     mobile: body.mobile, company: body.company, designation: body.designation, location: body.location,
