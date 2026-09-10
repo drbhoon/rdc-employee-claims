@@ -1,3 +1,4 @@
+import { formatIndiaDate } from "@/lib/dateFormat";
 import Link from "next/link";
 import { Shell } from "@/components/Shell";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -119,7 +120,7 @@ export default async function Dashboard() {
           <tbody>
             {lineRows.map(({ claim, line }) => (
               <tr key={line.id}>
-                <td>{line.claimDate.toLocaleDateString("en-IN")}</td>
+                <td>{formatIndiaDate(line.claimDate)}</td>
                 <td className="max-w-sm">{line.claimType.name}</td>
                 <td>{line.description}</td>
                 <td>INR {String(line.amount)}</td>

@@ -1,4 +1,6 @@
 "use client";
+import { indiaDateInput } from "@/lib/dateFormat";
+
 
 import { useMemo, useState } from "react";
 
@@ -21,7 +23,7 @@ type ClaimLineRow = Required<EmployeeClaimLineValue> & {
 };
 
 function today() {
-  return new Date().toISOString().slice(0, 10);
+  return indiaDateInput();
 }
 
 function rowKey() {

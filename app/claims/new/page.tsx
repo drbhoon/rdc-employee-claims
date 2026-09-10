@@ -1,3 +1,5 @@
+import { formatIndiaDate } from "@/lib/dateFormat";
+import { ClaimForm } from "@/components/ClaimForm";
 import { Shell } from "@/components/Shell";
 import { createOrUpdateClaim } from "@/lib/actions";
 import { requireUser } from "@/lib/auth";
@@ -35,13 +37,13 @@ export default async function NewClaimPage({ searchParams }: { searchParams: { e
         <ErrorNotice message="No active employee expense types are configured. Please ask Admin to run seed or activate claim types." />
       )}
       {employee?.isActive && claimTypes.length > 0 && (
-      <form action={createOrUpdateClaim} encType="multipart/form-data" className="space-y-4">
+      <ClaimForm action={createOrUpdateClaim} className="space-y-4">
         <div className="card flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
           <div><span className="font-semibold">Employee:</span> {employee.employeeId} - {employee.name}</div>
           <div><span className="font-semibold">Company:</span> {employee.company || "-"}</div>
           <div><span className="font-semibold">Designation:</span> {employee.designation || "-"}</div>
           <div><span className="font-semibold">Cost Center:</span> {employee.costCenter || "-"}</div>
-          <div><span className="font-semibold">Date:</span> {new Date().toLocaleDateString("en-IN")}</div>
+          <div><span className="font-semibold">Date:</span> {formatIndiaDate(new Date())}</div>
         </div>
         <EmployeeClaimLines claimTypes={claimTypes} maxUploadSizeMb={maxUploadSizeMb} />
         <ClaimCertification />
@@ -49,7 +51,7 @@ export default async function NewClaimPage({ searchParams }: { searchParams: { e
           <button className="btn-secondary" name="action" value="draft" formNoValidate>Save Draft</button>
           <ActionButton name="action" value="submit" variant="primary" confirmMessage="Are you sure you want to submit this claim?">Submit Claim</ActionButton>
         </div>
-      </form>
+      </ClaimForm>
       )}
     </Shell>
   );

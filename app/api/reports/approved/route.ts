@@ -1,3 +1,4 @@
+import { indiaDateInput } from "@/lib/dateFormat";
 import { csvResponse } from "@/lib/csv";
 import { getSession, hasNationalReportAccess } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -43,17 +44,17 @@ export async function GET(request: Request) {
     "Cost Center": claim.costCenter,
     "Claim Type": line.claimType.name,
     "GL Code": line.claimType.glCode || "",
-    "Claim Date": line.claimDate.toISOString().slice(0, 10),
+    "Claim Date": indiaDateInput(line.claimDate),
     Description: line.description,
     Amount: String(line.amount),
     "GST Amount": line.gstAmount ? String(line.gstAmount) : "",
     "Vendor Name": line.vendorName,
     "Bill Number": line.billNumber,
     "Accounts Cleared By": claim.history[0]?.actionByName || "",
-    "Accounts Cleared Date": claim.history[0]?.actionDate.toISOString().slice(0, 10) || "",
-    "Approval Date": claim.finalApprovedAt?.toISOString().slice(0, 10),
+    "Accounts Cleared Date": claim.history[0] ? indiaDateInput(claim.history[0].actionDate) : "",
+    "Approval Date": claim.finalApprovedAt ? indiaDateInput(claim.finalApprovedAt) : "",
     "Final Status": claim.currentStatus,
-    "Paid Date": claim.paidAt?.toISOString().slice(0, 10) || "",
+    "Paid Date": claim.paidAt ? indiaDateInput(claim.paidAt) : "",
     "Payment Reference": claim.paymentReference || "",
     "Payment Remarks": claim.paymentRemarks || ""
   })));

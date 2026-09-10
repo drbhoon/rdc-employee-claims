@@ -1,5 +1,7 @@
 "use server";
 
+import { claimUploadError } from "@/lib/claimUpload";
+
 import { randomUUID } from "crypto";
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
@@ -42,6 +44,8 @@ export async function createOrUpdateClaim(formData: FormData) {
   const user = await requireUser();
   const claimId = String(formData.get("id") || "");
   const errorPath = claimId ? `/claims/${claimId}` : "/claims/new";
+  const uploadError = claimUploadError(formData);
+  if (uploadError) actionError(errorPath, uploadError);
   const action = String(formData.get("action") || "draft");
   const certificationAccepted = formData.get("claimCertification") === "accepted";
   const amendmentRemarks = String(formData.get("amendmentRemarks") || "").trim();

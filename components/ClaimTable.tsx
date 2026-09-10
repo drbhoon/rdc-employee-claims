@@ -1,3 +1,4 @@
+import { formatIndiaDate } from "@/lib/dateFormat";
 import Link from "next/link";
 import { StatusBadge } from "@/components/StatusBadge";
 
@@ -40,7 +41,7 @@ export function ClaimTable({ claims, compact = false, showResumeAction = false }
                 <td>INR {String(claim.totalAmount)}</td>
                 <td><StatusBadge status={claim.currentStatus} /></td>
                 {!compact && <td>{claim.currentPendingWith || "-"}</td>}
-                <td>{claim.submittedAt ? claim.submittedAt.toLocaleDateString("en-IN") : "-"}</td>
+                <td>{claim.submittedAt ? formatIndiaDate(claim.submittedAt) : "-"}</td>
                 {!compact && <td>{claim.amendmentRemarks || "-"}</td>}
                 <td><Link className={compact ? "btn-secondary px-2 py-1 text-xs" : "btn-secondary"} href={`/claims/${claim.id}`}>{actionLabel}</Link></td>
               </tr>

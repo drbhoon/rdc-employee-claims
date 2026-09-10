@@ -1,3 +1,5 @@
+import { indiaDateInput, formatIndiaDate } from "@/lib/dateFormat";
+import { ClaimForm } from "@/components/ClaimForm";
 import { notFound } from "next/navigation";
 import { accountsAction, approverAction, createOrUpdateClaim } from "@/lib/actions";
 import { hasApproverAccess, requireUser } from "@/lib/auth";
@@ -73,7 +75,7 @@ export default async function ClaimDetail({ params, searchParams }: { params: { 
             </div>
           )}
           {canEdit ? (
-            <form action={createOrUpdateClaim} encType="multipart/form-data" className="space-y-3">
+            <ClaimForm action={createOrUpdateClaim} className="space-y-3">
               <input type="hidden" name="id" value={claim.id} />
               {claim.currentStatus !== "DRAFT" && (
                 <div>
@@ -86,7 +88,7 @@ export default async function ClaimDetail({ params, searchParams }: { params: { 
                 maxUploadSizeMb={maxUploadSizeMb}
                 initialLines={claim.lines.map((line) => ({
                   id: line.id,
-                  claimDate: line.claimDate.toISOString().slice(0, 10),
+                  claimDate: indiaDateInput(line.claimDate),
                   claimTypeId: line.claimTypeId,
                   description: line.description,
                   amount: String(line.amount)
@@ -94,11 +96,11 @@ export default async function ClaimDetail({ params, searchParams }: { params: { 
               />
               <ClaimCertification />
               <div className="flex gap-2"><button className="btn-secondary" name="action" value="draft" formNoValidate>Save Draft</button><ActionButton name="action" value="submit" variant="primary" confirmMessage="Are you sure you want to submit this claim?">Submit Claim</ActionButton></div>
-            </form>
+            </ClaimForm>
           ) : (
             <div className="overflow-x-auto">
               <table><thead><tr><th>Date</th><th>Type of Expenses</th><th>Description</th><th>Amount</th></tr></thead>
-              <tbody>{claim.lines.map((l) => <tr key={l.id}><td>{l.claimDate.toLocaleDateString("en-IN")}</td><td>{l.claimType.name}</td><td>{l.description}</td><td>{String(l.amount)}</td></tr>)}</tbody></table>
+              <tbody>{claim.lines.map((l) => <tr key={l.id}><td>{formatIndiaDate(l.claimDate)}</td><td>{l.claimType.name}</td><td>{l.description}</td><td>{String(l.amount)}</td></tr>)}</tbody></table>
             </div>
           )}
         </section>
