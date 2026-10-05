@@ -75,6 +75,7 @@ model User {
 
   claims              ClaimHeader[]
   advanceBalance      EmployeeAdvanceBalance?
+  monthlySalesVolumes MonthlySalesVolume[]
   passwordResetTokens PasswordResetToken[]
 }
 
@@ -264,4 +265,55 @@ model PaymentUploadError {
   errorMessage String
 
   batch PaymentUploadBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+}
+
+model VolumeUploadBatch {
+  id            String            @id @default(cuid())
+  fileName      String
+  uploadedBy    String
+  totalRows     Int
+  validRows     Int
+  errorRows     Int
+  importedRows  Int               @default(0)
+  status        UploadBatchStatus @default(PREVIEWED)
+  validatedRows Json?
+  uploadedAt    DateTime          @default(now())
+  importedAt    DateTime?
+
+  errors  VolumeUploadError[]
+  volumes MonthlySalesVolume[]
+}
+
+model VolumeUploadError {
+  id           String  @id @default(cuid())
+  batchId      String
+  rowNumber    Int
+  employeeId   String?
+  periodMonth  String?
+  errorMessage String
+
+  batch VolumeUploadBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+}
+
+model MonthlySalesVolume {
+  id            String   @id @default(cuid())
+  periodMonth   DateTime @db.Date
+  employeeId    String
+  employeeName  String
+  designation   String?
+  plant         String
+  location      String
+  volumeM3      Decimal  @db.Decimal(14, 3)
+  sourceBatchId String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  employee    User               @relation(fields: [employeeId], references: [employeeId], onUpdate: Cascade)
+  sourceBatch VolumeUploadBatch? @relation(fields: [sourceBatchId], references: [id], onDelete: SetNull)
+
+  @@unique([periodMonth, employeeId, plant, location])
+  @@index([periodMonth])
+  @@index([employeeId, periodMonth])
+  @@index([plant, periodMonth])
+  @@index([location, periodMonth])
 }

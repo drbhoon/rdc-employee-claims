@@ -23,6 +23,7 @@ export async function Nav() {
           {(user.role === "ACCOUNTS" || (user.role === "ADMIN" && !superAdmin)) && <NavLink href="/accounts" icon={<ShieldIcon />}>Accounts</NavLink>}
           {approverAccess && <NavLink href="/approver" icon={<ShieldIcon />}>Approvals</NavLink>}
           {superAdmin && <NavLink href="/admin" icon={<ShieldIcon />}>Admin</NavLink>}
+          {superAdmin && <NavLink href="/analytics" icon={<ChartIcon />}>Analytics</NavLink>}
           {reportAccess && <NavLink href="/reports" icon={<ChartIcon />}>Reports</NavLink>}
           {paymentAccess && <NavLink href="/payments" icon={<ChartIcon />}>Payments</NavLink>}
           <span className="col-span-2 inline-flex min-w-0 items-center gap-2 text-rdcGreen sm:col-span-1">
