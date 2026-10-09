@@ -1,12 +1,13 @@
 import { ClaimTable } from "@/components/ClaimTable";
 import { Shell } from "@/components/Shell";
-import { requireUser } from "@/lib/auth";
+import { isSuperAdmin, requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export default async function AccountsPage() {
   const user = await requireUser(["ACCOUNTS", "ADMIN"]);
+  const unrestricted = isSuperAdmin(user);
   const claims = await prisma.claimHeader.findMany({
-    where: user.role === "ADMIN" ? undefined : { employee: { accountsEmail: user.email || "" } },
+    where: unrestricted ? undefined : { employee: { accountsEmail: { equals: user.email || "__no_accounts_email__", mode: "insensitive" } } },
     orderBy: { updatedAt: "desc" }
   });
   const groups = [
