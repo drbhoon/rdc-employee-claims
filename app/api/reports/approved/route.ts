@@ -2,6 +2,7 @@ import { indiaDateInput } from "@/lib/dateFormat";
 import { csvResponse } from "@/lib/csv";
 import { getSession, hasNationalReportAccess } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { reportScopeWhere } from "@/lib/reportScope";
 
 function dateRange(from: string | null, to: string | null) {
   const range: { gte?: Date; lte?: Date } = {};
@@ -24,7 +25,7 @@ export async function GET(request: Request) {
     where: {
       currentStatus: { in: ["FINAL_APPROVED", "PAYMENT_DOWNLOADED", "PAID"] },
       ...(finalApprovedAt ? { finalApprovedAt } : {}),
-      ...(!nationalAccess ? { history: { some: { action: "ACCOUNTS_PASS", actionByEmployeeId: user.employeeId } } } : {}),
+      ...reportScopeWhere(user, nationalAccess),
       ...(glCode && glCode !== "ALL" ? { lines: { some: { claimType: { glCode } } } } : {})
     },
     include: {

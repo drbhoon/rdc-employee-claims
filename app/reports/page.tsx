@@ -2,6 +2,7 @@ import { Shell } from "@/components/Shell";
 import { hasNationalReportAccess, requireReportViewer } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { statusLabel } from "@/lib/workflow";
+import { reportScopeWhere } from "@/lib/reportScope";
 import { ClaimStatus, Prisma } from "@prisma/client";
 
 const pendingStatuses: ClaimStatus[] = ["SUBMITTED_TO_ACCOUNTS", "PENDING_LEVEL_1_APPROVAL", "PENDING_LEVEL_2_APPROVAL", "PENDING_LEVEL_3_APPROVAL"];
@@ -24,7 +25,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: { fr
   const nationalAccess = hasNationalReportAccess(user);
   const selectedGlCode = searchParams.glCode && searchParams.glCode !== "ALL" ? searchParams.glCode : "ALL";
   const submittedAt = dateRange(searchParams.from, searchParams.to);
-  const accessWhere: Prisma.ClaimHeaderWhereInput = nationalAccess ? {} : { history: { some: { action: "ACCOUNTS_PASS", actionByEmployeeId: user.employeeId } } };
+  const accessWhere: Prisma.ClaimHeaderWhereInput = reportScopeWhere(user, nationalAccess);
   const glWhere: Prisma.ClaimHeaderWhereInput = selectedGlCode !== "ALL" ? { lines: { some: { claimType: { glCode: selectedGlCode } } } } : {};
   const baseWhere: Prisma.ClaimHeaderWhereInput = { ...accessWhere, ...glWhere, ...(submittedAt ? { submittedAt } : {}) };
   const approvedWhere: Prisma.ClaimHeaderWhereInput = {
@@ -77,7 +78,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: { fr
             <a className="btn whitespace-nowrap" href={claimWiseHref}>{nationalAccess ? "Download Approved Claims - Claim ID Wise" : "Download My Cleared Claims - Claim ID Wise"}</a>
           </div>
         </div>
-        <p className="text-xs text-muted md:col-span-5">Both downloads use final approval date and the selected GL code. The Claim ID-wise payment report includes claims containing that GL and retains each claim's full approved amount for settlement. Accounts without national rights receive only claims they cleared.</p>
+      <p className="text-xs text-muted md:col-span-5">Both downloads use final approval date and the selected GL code. The Claim ID-wise payment report includes claims containing that GL and retains each claim's full approved amount for settlement. Accounts without national rights receive only claims mapped to their employee group.</p>
       </form>
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="card"><h2 className="mb-3 font-semibold">Claim Status Report</h2><table><thead><tr><th>Status</th><th>Count</th></tr></thead><tbody>{byStatus.map((r) => <tr key={r.currentStatus}><td>{statusLabel(r.currentStatus)}</td><td>{r._count}</td></tr>)}</tbody></table></section>

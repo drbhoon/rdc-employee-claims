@@ -1,6 +1,7 @@
 import { csvResponse } from "@/lib/csv";
 import { getSession, hasNationalReportAccess } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { reportScopeWhere } from "@/lib/reportScope";
 import { employeePaymentRows, invalidPaymentDateRange, paymentApprovalDateRange, paymentPeriodSuffix, paymentReportHeaders, paymentReportRows } from "@/lib/paymentReport";
 
 export async function GET(request: Request) {
@@ -19,7 +20,7 @@ export async function GET(request: Request) {
       currentStatus: "FINAL_APPROVED",
       ...(finalApprovedAt ? { finalApprovedAt } : {}),
       ...(selectedGlCode ? { lines: { some: { claimType: { glCode: selectedGlCode } } } } : {}),
-      ...(!nationalAccess ? { history: { some: { action: "ACCOUNTS_PASS", actionByEmployeeId: user.employeeId } } } : {})
+      ...reportScopeWhere(user, nationalAccess)
     },
     include: { lines: { include: { claimType: true } } },
     orderBy: { finalApprovedAt: "asc" }
