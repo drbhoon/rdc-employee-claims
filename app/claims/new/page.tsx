@@ -8,6 +8,7 @@ import { EmployeeClaimLines } from "@/components/EmployeeClaimLines";
 import { ActionButton } from "@/components/ActionButton";
 import { ErrorNotice } from "@/components/ErrorNotice";
 import { ClaimCertification } from "@/components/ClaimCertification";
+import { routingConfirmationMessage } from "@/lib/routing";
 
 export default async function NewClaimPage({ searchParams }: { searchParams: { error?: string } }) {
   const user = await requireUser();
@@ -19,6 +20,14 @@ export default async function NewClaimPage({ searchParams }: { searchParams: { e
       company: true,
       designation: true,
       costCenter: true,
+      accountsName: true,
+      accountsEmail: true,
+      rmName: true,
+      rmEmail: true,
+      level1Name: true,
+      level1Email: true,
+      level2Name: true,
+      level2Email: true,
       isActive: true
     }
   });
@@ -49,7 +58,7 @@ export default async function NewClaimPage({ searchParams }: { searchParams: { e
         <ClaimCertification />
         <div className="flex gap-2">
           <button className="btn-secondary" name="action" value="draft" formNoValidate>Save Draft</button>
-          <ActionButton name="action" value="submit" variant="primary" confirmMessage="Are you sure you want to submit this claim?">Submit Claim</ActionButton>
+          <ActionButton name="action" value="submit" variant="primary" confirmMessage={routingConfirmationMessage(employee)}>Submit Claim</ActionButton>
         </div>
       </ClaimForm>
       )}

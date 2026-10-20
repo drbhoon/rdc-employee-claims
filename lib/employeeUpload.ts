@@ -177,6 +177,18 @@ export async function validateRows(rows: EmployeeUploadRow[]) {
     const level2Name = clean(row.level2_name);
     const level2Email = cleanEmail(row.level2_email);
     const role = clean(row.role || "EMPLOYEE").toUpperCase();
+    const routingByEmail = new Map<string, string[]>();
+    [
+      ["Accounts", accountsEmail],
+      ["RM", rmEmail],
+      ["Level 1/BH", level1Email],
+      ["Level 2/BH", level2Email]
+    ].forEach(([label, email]) => {
+      if (!email) return;
+      const labels = routingByEmail.get(email) || [];
+      labels.push(label);
+      routingByEmail.set(email, labels);
+    });
 
     if (!["ADD", "UPDATE", "DELETE"].includes(action)) rowErrors.push("action must be ADD, UPDATE, or DELETE");
     if (!employeeId) rowErrors.push("employee_id is required");
@@ -194,6 +206,9 @@ export async function validateRows(rows: EmployeeUploadRow[]) {
     if (!level2Name) rowErrors.push("level2_name is required");
     if (!level2Email) rowErrors.push("level2_email is required");
     if (level2Email && !validEmail(level2Email)) rowErrors.push("level2_email must be a valid email");
+    routingByEmail.forEach((labels, email) => {
+      if (labels.length > 1) rowErrors.push(`duplicate routing mapping: ${labels.join(", ")} use the same email/ID (${email})`);
+    });
     if (employeeId && seenEmployees.has(employeeId)) rowErrors.push("duplicate employee_id in file");
     if (loginId && seenLoginIds.has(loginId)) rowErrors.push("duplicate login_id in file");
     if (!["EMPLOYEE", "ACCOUNTS", "APPROVER", "ADMIN"].includes(role)) rowErrors.push("role must be EMPLOYEE, ACCOUNTS, APPROVER, or ADMIN");

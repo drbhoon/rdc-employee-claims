@@ -11,6 +11,7 @@ import { ErrorNotice } from "@/components/ErrorNotice";
 import { EmployeeClaimLines } from "@/components/EmployeeClaimLines";
 import { ClaimCertification } from "@/components/ClaimCertification";
 import { formatIndiaDateTime } from "@/lib/dateFormat";
+import { routingConfirmationMessage } from "@/lib/routing";
 
 const editableStatuses = [
   "DRAFT",
@@ -95,7 +96,7 @@ export default async function ClaimDetail({ params, searchParams }: { params: { 
                 }))}
               />
               <ClaimCertification />
-              <div className="flex gap-2"><button className="btn-secondary" name="action" value="draft" formNoValidate>Save Draft</button><ActionButton name="action" value="submit" variant="primary" confirmMessage="Are you sure you want to submit this claim?">Submit Claim</ActionButton></div>
+              <div className="flex gap-2"><button className="btn-secondary" name="action" value="draft" formNoValidate>Save Draft</button><ActionButton name="action" value="submit" variant="primary" confirmMessage={routingConfirmationMessage(claim.employee)}>Submit Claim</ActionButton></div>
             </ClaimForm>
           ) : (
             <div className="overflow-x-auto">

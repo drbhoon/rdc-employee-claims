@@ -3,6 +3,8 @@ import { hasNationalReportAccess, requireReportViewer } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { statusLabel } from "@/lib/workflow";
 import { reportScopeWhere } from "@/lib/reportScope";
+import { agingClaimStatuses, claimsOlderThan72Hours } from "@/lib/agingReport";
+import { formatIndiaDateTime } from "@/lib/dateFormat";
 import { ClaimStatus, Prisma } from "@prisma/client";
 
 const pendingStatuses: ClaimStatus[] = ["SUBMITTED_TO_ACCOUNTS", "PENDING_LEVEL_1_APPROVAL", "PENDING_LEVEL_2_APPROVAL", "PENDING_LEVEL_3_APPROVAL"];
@@ -44,15 +46,26 @@ export default async function ReportsPage({ searchParams }: { searchParams: { fr
   if (searchParams.to) claimWiseQuery.set("to", searchParams.to);
   if (selectedGlCode !== "ALL") claimWiseQuery.set("glCode", selectedGlCode);
   const claimWiseHref = `/api/reports/approved-claimwise${claimWiseQuery.size ? `?${claimWiseQuery.toString()}` : ""}`;
+  const agingHref = "/api/reports/aging";
 
-  const [byStatus, byEmployee, pending, rejected, approvedClaims, claimTypes] = await Promise.all([
+  const [byStatus, byEmployee, pending, rejected, approvedClaims, claimTypes, agingCandidates] = await Promise.all([
     prisma.claimHeader.groupBy({ by: ["currentStatus"], where: baseWhere, _count: true }),
     prisma.claimHeader.groupBy({ by: ["employeeId"], where: baseWhere, _sum: { totalAmount: true }, _count: true }),
     prisma.claimHeader.findMany({ where: { ...baseWhere, currentStatus: { in: pendingStatuses } }, orderBy: { updatedAt: "desc" } }),
     prisma.claimHeader.findMany({ where: { ...baseWhere, currentStatus: { in: rejectedStatuses } }, include: { history: { orderBy: { actionDate: "desc" } } }, orderBy: { updatedAt: "desc" } }),
     prisma.claimHeader.findMany({ where: approvedWhere, include: { lines: { where: selectedGlCode !== "ALL" ? { claimType: { glCode: selectedGlCode } } : undefined, include: { claimType: true } } } }),
-    prisma.claimType.findMany({ where: { isActive: true, glCode: { not: null } }, select: { glCode: true }, orderBy: { glCode: "asc" } })
+    prisma.claimType.findMany({ where: { isActive: true, glCode: { not: null } }, select: { glCode: true }, orderBy: { glCode: "asc" } }),
+    prisma.claimHeader.findMany({
+      where: { ...accessWhere, currentStatus: { in: agingClaimStatuses } },
+      select: {
+        claimId: true, employeeId: true, employeeName: true, totalAmount: true,
+        currentStatus: true, currentPendingWith: true, submittedAt: true,
+        history: { select: { newStatus: true, actionDate: true }, orderBy: { actionDate: "desc" } }
+      },
+      orderBy: { submittedAt: "asc" }
+    })
   ]);
+  const agingClaims = claimsOlderThan72Hours(agingCandidates);
   const glCodes = [...new Set(claimTypes.map((type) => type.glCode).filter(Boolean) as string[])];
   const glSummary = new Map<string, { type: string; amount: number }>();
   approvedClaims.forEach((claim) => {
@@ -76,6 +89,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: { fr
           <div className="flex flex-col items-start gap-2">
             <a className="btn whitespace-nowrap" href={csvHref}>{nationalAccess ? "Download Approved Claims - GL Wise" : "Download My Cleared Claims - GL Wise"}</a>
             <a className="btn whitespace-nowrap" href={claimWiseHref}>{nationalAccess ? "Download Approved Claims - Claim ID Wise" : "Download My Cleared Claims - Claim ID Wise"}</a>
+            <a className="btn-secondary whitespace-nowrap" href={agingHref}>Download Claims Pending &gt;72 Hours</a>
           </div>
         </div>
       <p className="text-xs text-muted md:col-span-5">Both downloads use final approval date and the selected GL code. The Claim ID-wise payment report includes claims containing that GL and retains each claim's full approved amount for settlement. Accounts without national rights receive only claims mapped to their employee group.</p>
@@ -84,6 +98,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: { fr
         <section className="card"><h2 className="mb-3 font-semibold">Claim Status Report</h2><table><thead><tr><th>Status</th><th>Count</th></tr></thead><tbody>{byStatus.map((r) => <tr key={r.currentStatus}><td>{statusLabel(r.currentStatus)}</td><td>{r._count}</td></tr>)}</tbody></table></section>
         <section className="card"><h2 className="mb-3 font-semibold">Employee-wise Claims</h2><table><thead><tr><th>Employee</th><th>Claims</th><th>Total</th></tr></thead><tbody>{byEmployee.map((r) => <tr key={r.employeeId}><td>{r.employeeId}</td><td>{r._count}</td><td>{r._sum.totalAmount ? String(r._sum.totalAmount) : "0"}</td></tr>)}</tbody></table></section>
         <section className="card"><h2 className="mb-3 font-semibold">Pending Approval Report</h2><table><thead><tr><th>Claim</th><th>Employee</th><th>Status</th><th>Pending With</th></tr></thead><tbody>{pending.map((c) => <tr key={c.id}><td>{c.claimId}</td><td>{c.employeeName}</td><td>{statusLabel(c.currentStatus)}</td><td>{c.currentPendingWith}</td></tr>)}</tbody></table></section>
+        <section className="card lg:col-span-2"><h2 className="mb-3 font-semibold">Claims Lying with Accounts or RM for More Than 72 Hours</h2><table><thead><tr><th>Claim</th><th>Employee</th><th>Status</th><th>Pending With</th><th>Pending Since</th><th>Age</th><th>Amount</th></tr></thead><tbody>{agingClaims.map((c) => <tr key={c.claimId}><td>{c.claimId}</td><td>{c.employeeName}</td><td>{statusLabel(c.currentStatus)}</td><td>{c.currentPendingWith || "-"}</td><td>{formatIndiaDateTime(c.pendingSince)}</td><td>{c.ageHours.toFixed(1)} hours</td><td>INR {String(c.totalAmount)}</td></tr>)}{!agingClaims.length && <tr><td colSpan={7} className="text-center text-muted">No claims have been pending for more than 72 hours.</td></tr>}</tbody></table></section>
         <section className="card"><h2 className="mb-3 font-semibold">Approved GL Summary</h2><table><thead><tr><th>GL Code</th><th>Type of Expense</th><th>Total</th></tr></thead><tbody>{Array.from(glSummary.entries()).map(([glCode, item]) => <tr key={glCode}><td>{glCode}</td><td>{item.type}</td><td>{item.amount.toFixed(2)}</td></tr>)}{!glSummary.size && <tr><td colSpan={3} className="text-center text-muted">No approved claims found.</td></tr>}</tbody></table></section>
         <section className="card lg:col-span-2"><h2 className="mb-3 font-semibold">Rejection Report</h2><table><thead><tr><th>Claim</th><th>Employee</th><th>Status</th><th>Amount</th><th>Reason</th></tr></thead><tbody>{rejected.map((c) => <tr key={c.id}><td>{c.claimId}</td><td>{c.employeeName}</td><td>{statusLabel(c.currentStatus)}</td><td>{String(c.totalAmount)}</td><td>{latestRejectionReason(c.history)}</td></tr>)}{!rejected.length && <tr><td colSpan={5} className="text-center text-muted">No rejected claims found.</td></tr>}</tbody></table></section>
       </div>
