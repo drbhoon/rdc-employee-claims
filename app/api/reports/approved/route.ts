@@ -1,8 +1,9 @@
 import { indiaDateInput } from "@/lib/dateFormat";
 import { csvResponse } from "@/lib/csv";
-import { getSession, hasNationalReportAccess } from "@/lib/auth";
+import { getSession, hasNationalReportAccess, isSuperAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { reportScopeWhere } from "@/lib/reportScope";
+import { normalizeGlCodes } from "@/lib/glCodes";
 
 function dateRange(from: string | null, to: string | null) {
   const range: { gte?: Date; lte?: Date } = {};
@@ -18,7 +19,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const from = searchParams.get("from");
   const to = searchParams.get("to");
-  const glCode = searchParams.get("glCode");
+  const selectedGlCodes = (isSuperAdmin(user) ? normalizeGlCodes(searchParams.getAll("glCode")) : normalizeGlCodes(searchParams.getAll("glCode")).slice(0, 1));
   if (from && to && from > to) return new Response("From date cannot be after To date.", { status: 400 });
   const finalApprovedAt = dateRange(searchParams.get("from"), searchParams.get("to"));
   const claims = await prisma.claimHeader.findMany({
@@ -26,10 +27,10 @@ export async function GET(request: Request) {
       currentStatus: { in: ["FINAL_APPROVED", "PAYMENT_DOWNLOADED", "PAID"] },
       ...(finalApprovedAt ? { finalApprovedAt } : {}),
       ...reportScopeWhere(user, nationalAccess),
-      ...(glCode && glCode !== "ALL" ? { lines: { some: { claimType: { glCode } } } } : {})
+      ...(selectedGlCodes.length ? { lines: { some: { claimType: { glCode: { in: selectedGlCodes } } } } } : {})
     },
     include: {
-      lines: { where: glCode && glCode !== "ALL" ? { claimType: { glCode } } : undefined, include: { claimType: true } },
+      lines: { where: selectedGlCodes.length ? { claimType: { glCode: { in: selectedGlCodes } } } : undefined, include: { claimType: true } },
       history: { where: { action: "ACCOUNTS_PASS" }, orderBy: { actionDate: "desc" }, take: 1 }
     },
     orderBy: { finalApprovedAt: "desc" }
@@ -69,6 +70,6 @@ export async function GET(request: Request) {
     rows.push({ "Claim ID": "SUMMARY", "Employee Code": "", "Employee Name": "", Company: "", Designation: "", Location: "", Plant: "", "Cost Center": cc, "Claim Type": type, "GL Code": glCode, "Claim Date": "", Description: "Cost-wise summary", Amount: amount.toFixed(2), "GST Amount": "", "Vendor Name": "", "Bill Number": "", "Accounts Cleared By": "", "Accounts Cleared Date": "", "Approval Date": "", "Final Status": "", "Paid Date": "", "Payment Reference": "", "Payment Remarks": "" });
   });
   const period = from || to ? `-${from || "start"}-to-${to || "latest"}` : "";
-  const glSuffix = glCode && glCode !== "ALL" ? `-gl-${glCode.replace(/[^A-Za-z0-9_-]/g, "-")}` : "";
+  const glSuffix = selectedGlCodes.length ? `-gl-${selectedGlCodes.join("-").replace(/[^A-Za-z0-9_-]/g, "-")}` : "";
   return csvResponse(`approved-claims${period}${glSuffix}.csv`, rows);
 }

@@ -36,7 +36,7 @@ export function EmployeeMasterPanel({ users }: { users: EmployeeMasterUser[] }) 
           <label>Search employee by name, code or email</label>
           <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Start typing to find an employee" />
         </div>
-        <a className="btn-secondary" href="/api/admin/employees/export">Download Employee Master</a>
+        <a className="btn" href="/api/admin/employees/export">Download Employee Master</a>
       </div>
       <div className="text-sm text-muted">
         Showing {visible.length} of {filtered.length} matching employee{filtered.length === 1 ? "" : "s"} ({users.length} total).

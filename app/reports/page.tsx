@@ -1,10 +1,11 @@
 import { Shell } from "@/components/Shell";
-import { hasNationalReportAccess, requireReportViewer } from "@/lib/auth";
+import { hasNationalReportAccess, isSuperAdmin, requireReportViewer } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { statusLabel } from "@/lib/workflow";
 import { reportScopeWhere } from "@/lib/reportScope";
 import { agingClaimStatuses, claimsOlderThan72Hours } from "@/lib/agingReport";
 import { formatIndiaDateTime } from "@/lib/dateFormat";
+import { normalizeGlCodes } from "@/lib/glCodes";
 import { ClaimStatus, Prisma } from "@prisma/client";
 
 const pendingStatuses: ClaimStatus[] = ["SUBMITTED_TO_ACCOUNTS", "PENDING_LEVEL_1_APPROVAL", "PENDING_LEVEL_2_APPROVAL", "PENDING_LEVEL_3_APPROVAL"];
@@ -22,13 +23,14 @@ function latestRejectionReason(history: { newStatus: string; comments: string | 
   return history.find((item) => item.newStatus.includes("REJECTED"))?.comments || "-";
 }
 
-export default async function ReportsPage({ searchParams }: { searchParams: { from?: string; to?: string; glCode?: string } }) {
+export default async function ReportsPage({ searchParams }: { searchParams: { from?: string; to?: string; glCode?: string | string[] } }) {
   const user = await requireReportViewer();
   const nationalAccess = hasNationalReportAccess(user);
-  const selectedGlCode = searchParams.glCode && searchParams.glCode !== "ALL" ? searchParams.glCode : "ALL";
+  const multiGlAccess = isSuperAdmin(user);
+  const selectedGlCodes = (multiGlAccess ? normalizeGlCodes(searchParams.glCode) : normalizeGlCodes(searchParams.glCode).slice(0, 1));
   const submittedAt = dateRange(searchParams.from, searchParams.to);
   const accessWhere: Prisma.ClaimHeaderWhereInput = reportScopeWhere(user, nationalAccess);
-  const glWhere: Prisma.ClaimHeaderWhereInput = selectedGlCode !== "ALL" ? { lines: { some: { claimType: { glCode: selectedGlCode } } } } : {};
+  const glWhere: Prisma.ClaimHeaderWhereInput = selectedGlCodes.length ? { lines: { some: { claimType: { glCode: { in: selectedGlCodes } } } } } : {};
   const baseWhere: Prisma.ClaimHeaderWhereInput = { ...accessWhere, ...glWhere, ...(submittedAt ? { submittedAt } : {}) };
   const approvedWhere: Prisma.ClaimHeaderWhereInput = {
     ...accessWhere,
@@ -39,12 +41,12 @@ export default async function ReportsPage({ searchParams }: { searchParams: { fr
   const csvQuery = new URLSearchParams();
   if (searchParams.from) csvQuery.set("from", searchParams.from);
   if (searchParams.to) csvQuery.set("to", searchParams.to);
-  if (selectedGlCode !== "ALL") csvQuery.set("glCode", selectedGlCode);
+  selectedGlCodes.forEach((code) => csvQuery.append("glCode", code));
   const csvHref = `/api/reports/approved${csvQuery.size ? `?${csvQuery.toString()}` : ""}`;
   const claimWiseQuery = new URLSearchParams();
   if (searchParams.from) claimWiseQuery.set("from", searchParams.from);
   if (searchParams.to) claimWiseQuery.set("to", searchParams.to);
-  if (selectedGlCode !== "ALL") claimWiseQuery.set("glCode", selectedGlCode);
+  selectedGlCodes.forEach((code) => claimWiseQuery.append("glCode", code));
   const claimWiseHref = `/api/reports/approved-claimwise${claimWiseQuery.size ? `?${claimWiseQuery.toString()}` : ""}`;
   const agingHref = "/api/reports/aging";
 
@@ -53,7 +55,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: { fr
     prisma.claimHeader.groupBy({ by: ["employeeId"], where: baseWhere, _sum: { totalAmount: true }, _count: true }),
     prisma.claimHeader.findMany({ where: { ...baseWhere, currentStatus: { in: pendingStatuses } }, orderBy: { updatedAt: "desc" } }),
     prisma.claimHeader.findMany({ where: { ...baseWhere, currentStatus: { in: rejectedStatuses } }, include: { history: { orderBy: { actionDate: "desc" } } }, orderBy: { updatedAt: "desc" } }),
-    prisma.claimHeader.findMany({ where: approvedWhere, include: { lines: { where: selectedGlCode !== "ALL" ? { claimType: { glCode: selectedGlCode } } : undefined, include: { claimType: true } } } }),
+    prisma.claimHeader.findMany({ where: approvedWhere, include: { lines: { where: selectedGlCodes.length ? { claimType: { glCode: { in: selectedGlCodes } } } : undefined, include: { claimType: true } } } }),
     prisma.claimType.findMany({ where: { isActive: true, glCode: { not: null } }, select: { glCode: true }, orderBy: { glCode: "asc" } }),
     prisma.claimHeader.findMany({
       where: { ...accessWhere, currentStatus: { in: agingClaimStatuses } },
@@ -82,7 +84,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: { fr
       <form className="card mb-4 grid gap-3 md:grid-cols-5" action="/reports">
         <div><label>From Date</label><input type="date" name="from" defaultValue={searchParams.from || ""} /></div>
         <div><label>To Date</label><input type="date" name="to" defaultValue={searchParams.to || ""} /></div>
-        <div><label>By GL Code</label><select name="glCode" defaultValue={selectedGlCode}><option value="ALL">All GL Codes</option>{glCodes.map((code) => <option key={code} value={code}>{code}</option>)}</select></div>
+        <div><label>By GL Code</label>{multiGlAccess ? <select name="glCode" multiple size={Math.min(Math.max(glCodes.length + 1, 4), 8)} defaultValue={selectedGlCodes.length ? selectedGlCodes : ["ALL"]}><option value="ALL">All GL Codes</option>{glCodes.map((code) => <option key={code} value={code}>{code}</option>)}</select> : <select name="glCode" defaultValue={selectedGlCodes[0] || "ALL"}><option value="ALL">All GL Codes</option>{glCodes.map((code) => <option key={code} value={code}>{code}</option>)}</select>}{multiGlAccess && <p className="mt-1 text-xs text-muted">Hold Ctrl/Cmd to select multiple codes.</p>}</div>
         <div className="flex items-start gap-2 md:col-span-2">
           <button className="btn">Apply Filters</button>
           <a className="btn-secondary" href="/reports">Clear</a>
@@ -92,7 +94,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: { fr
             <a className="btn-secondary whitespace-nowrap" href={agingHref}>Download Claims Pending &gt;72 Hours</a>
           </div>
         </div>
-      <p className="text-xs text-muted md:col-span-5">Both downloads use final approval date and the selected GL code. The Claim ID-wise payment report includes claims containing that GL and retains each claim's full approved amount for settlement. Accounts without national rights receive only claims mapped to their employee group.</p>
+      <p className="text-xs text-muted md:col-span-5">Both downloads use final approval date and the selected GL code(s). The Claim ID-wise payment report includes claims containing those GL codes and retains each claim's full approved amount for settlement. Accounts without national rights receive only claims mapped to their employee group.</p>
       </form>
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="card"><h2 className="mb-3 font-semibold">Claim Status Report</h2><table><thead><tr><th>Status</th><th>Count</th></tr></thead><tbody>{byStatus.map((r) => <tr key={r.currentStatus}><td>{statusLabel(r.currentStatus)}</td><td>{r._count}</td></tr>)}</tbody></table></section>
